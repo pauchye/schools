@@ -10,14 +10,21 @@
   
 .modal-child {
     position: absolute;
+    max-height: 80%;
+    min-height: 80%;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     width: 50%;
     background-color: white;
+    overflow: auto !important;
 }
 
 .scroll-lock {
     overflow: hidden;
     margin-right: 17px;
 }
+
+/* .scroll-fix {
+    overflow: scroll;
+} */

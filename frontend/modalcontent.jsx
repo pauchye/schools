@@ -1,6 +1,8 @@
 import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
 import './modal.css'
+import ShowSchool from './showSchool'
+
 export class ModalContent extends Component {
 
         
@@ -12,7 +14,7 @@ export class ModalContent extends Component {
             onKeyDown={this.props.onKeyDown}
         >
             <div className="modal-background">
-            <button 
+            {/* <button 
                 aria-label="Close Modal"
                 aria-labelledby="close-modal"
                 className="_modal-close"
@@ -21,10 +23,25 @@ export class ModalContent extends Component {
                 <svg className="_modal-close-icon" viewBox="0 0 40 40">
                 <path d="M 10,10 L 30,30 M 30,10 L 10,30" />
                 </svg>
-            </button>
+            </button> */}
             <div className="modal-child"
                 id="modalNotClosed"
-            >{'hi'}</div>
+            >
+                <button 
+                aria-label="Close Modal"
+                aria-labelledby="close-modal"
+                className="_modal-close"
+                onClick={this.props.closeModal} className="_modal-close">
+                <span id="close-modal" className="_hide-visual">Close</span>
+                {/* <svg className="_modal-close-icon" viewBox="0 0 40 40">
+                <path d="M 10,10 L 30,30 M 30,10 L 10,30" />
+                </svg> */}
+            </button>
+            
+                <ShowSchool
+                    content={this.props.content}
+                />
+            </div>
             </div>
         </aside>,
         document.body

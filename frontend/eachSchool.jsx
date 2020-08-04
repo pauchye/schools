@@ -4,7 +4,6 @@ import './schools.css'
 function EachSchool(props){
     return(
         <div>
-            {/* <h1>hi</h1> */}
             <li className='table'>
                 <div className='tab-1'>
                     <input name={props.name} type="checkbox" checked={props.isChecked} onChange={props.handleCheckChildElement}/>

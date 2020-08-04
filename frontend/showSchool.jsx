@@ -1,15 +1,9 @@
 import React from 'react'
 
-function ShowSchool() {
-    const school = JSON.parse(localStorage.getItem('selectedSchool'));
-    console.log(school)
-    // debugger
+function ShowSchool(props) {
+    const school = props.content.data;
     return(
         <div>
-            <div onClick={() => {
-                    localStorage.clear()
-                    location.hash = '/'
-                }}>Back</div>   
             <ul>
                 <li>
                     <div>School name</div>

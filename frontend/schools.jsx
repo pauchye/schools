@@ -8,7 +8,6 @@ import Modal from './modal'
 const allSchools = require('./reports/schoolqrep2018.json'); 
 const dummyData = require('./reports/dummydata.json')
 
-
 class Schools extends React.Component {
     constructor(){
         super()
@@ -16,19 +15,11 @@ class Schools extends React.Component {
             data: allSchools,
             feederData: [],
             selected: [],
-            isOpened: false
+            isOpened: false,
+            sort: 'acs'
         }
-
-        // this.isOpened = false;
         this.modalContent = null
-        // this.modalProps = {
-        //     triggerText: 'Launch the Modal!'
-        // };
-        // this.modalContent = (
-        //     <div>
-        //       <p>Hello From passed modalContent from App!</p>
-        //     </div>
-        //   );
+
         this.handleCheckChildElement = this.handleCheckChildElement.bind(this)
         this.handleOpenModal = this.handleOpenModal.bind(this)
         this.closeModal = this.closeModal.bind(this)
@@ -36,41 +27,21 @@ class Schools extends React.Component {
         this.onClickOutside = this.onClickOutside.bind(this)
         this.handleSubmit = this.handleSubmit.bind(this)
         this.toggleScrollLock = this.toggleScrollLock.bind(this)
-        // this.handleCompare = this.handleCompare.bind(this)
+        this.updateDistrict = this.updateDistrict.bind(this)
+        this.toggleSort = this.toggleSort.bind(this)
     }
 
     componentDidMount(){
-        // const p1 = fetch("https://data.cityofnewyork.us/resource/g6v2-wcvk.json").then(response => response.json());
-        // const p1 = fetch("./frontend/reports/schoolqrep2018.json").then(response => response.json());
-        // const p2 = fetch("https://data.cityofnewyork.us/resource/xuij-x4t4.json").then(response => response.json());;
-        // Promise.all([p1, p2]).then(([p1Res, p2Res]) => {
-        //     this.setState({
-        //         data: p1Res,
-        //         feederData: p2Res
-        //     });
-        // });
-
-        // fetch("https://data.cityofnewyork.us/resource/g6v2-wcvk.json")
-        // .then(response => {
-        //     // console.log('response', response)
-        //     return response.json()}
-        // )
-        // .then(response => {
-        //     console.log('response', response)
-        //     this.setState({ data: response })
-        // })
-
         fetch("https://data.cityofnewyork.us/resource/xuij-x4t4.json").then(response => {
             return response.json()}
         ).then(response => {
             console.log('response', response)
             this.setState({ feederData: response })
+            localStorage.setItem('storeData', JSON.stringify(response))
+            // debugger
         })
     }
 
-    // componentDidUpdate() {
-    //     console.log('updated')
-    //   }
 
     handleCheckChildElement(event){
         let schools = this.state.feederData
@@ -78,36 +49,24 @@ class Schools extends React.Component {
         schools.forEach(school => {
           if (school.feeder_school_name === event.target.name) {
             school.isChecked =  event.target.checked;
-            
-            // this.setState({feederData: schools})
           }
           if(school.isChecked){
             selectedSchools.push(school)  
           }
         })
-        this.setState({feederData: schools, selected: selectedSchools})
-        // console.log('this.state.selected', this.state.selected)
-        // console.log('selectedSchools', selectedSchools)
-        
-     }
+        this.setState({feederData: schools, selected: selectedSchools}) 
+    }
 
-     handleOpenModal(event){
-        // console.log('modal', event.target.dataset.data)
-        // debugger
+    handleOpenModal(event){
         this.setState({isOpened: true});
-        // this.isOpened = true;
         this.modalContent = {
           data: JSON.parse(event.target.dataset.data)
         }
         this.toggleScrollLock();
-        // debugger
-        // console.log('modal', event.target.otherdata)
-     }
+    }
 
     closeModal() {
         this.setState({ isOpened: false });
-        // this.TriggerButton.focus();
-        // debugger
         this.toggleScrollLock();
     };
 
@@ -118,9 +77,6 @@ class Schools extends React.Component {
     };
 
     onClickOutside(event) {
-        // let modal = document.getElementsByClassName('modal-child')
-        // debugger
-        // if (modal.contains(event.target)) return;
         if(document.getElementById('modalNotClosed').contains(event.target)) return;
         this.closeModal();
     };
@@ -129,9 +85,9 @@ class Schools extends React.Component {
         let selectedSchools = []
         let schools = this.state.feederData
         schools.forEach(school => {
-          if (school.isChecked) {
-            selectedSchools.push(school);
-          }
+            if (school.isChecked) {
+              selectedSchools.push(school);
+            }
         })
         console.log('selectedSchools', selectedSchools)
     }
@@ -140,12 +96,62 @@ class Schools extends React.Component {
         let selected = JSON.stringify(this.state.selected);
         localStorage.setItem('selected', selected)
         location.hash = '/selected'
-      };
+    };
 
     toggleScrollLock() {
-      console.log('tog schools')
         document.querySelector('html').classList.toggle('scroll-lock');
     };
+
+    updateDistrict(event) {
+        event.persist();
+        // debugger
+        let allSchools;
+        if (event.target.value !== "All"){
+          allSchools = this.state.feederData.filter(sch => {
+            return parseInt(sch.feeder_school_dbn.slice(0, 2)) === parseInt(event.target.value)
+          });
+          console.log('all dist', allSchools[0])
+        } else {
+
+          allSchools = JSON.parse(localStorage.getItem('storeData'))
+          
+          console.log('all all', allSchools)
+        }
+        // debugger
+        this.setState({feederData: allSchools})
+    }
+
+
+    toggleSort(event) {
+      let sorter = event.target.dataset.sort;
+      let schools = this.state.feederData;
+      let newSchools;
+      let lessSchools;
+      if(this.state.sort === 'acs'){
+        newSchools = schools.filter(school => {
+          return school[sorter] !== "0-5"
+        }).sort(function(a, b){
+          return a[sorter] - b[sorter]
+        });
+        lessSchools = schools.filter(school => {
+          return school[sorter] === "0-5"
+        })
+        newSchools = lessSchools.concat(newSchools);
+        this.setState({sort: 'desc'})
+      } else {
+        newSchools = schools.filter(school => {
+          return school[sorter] !== "0-5"
+        }).sort(function(a, b){
+          return b[sorter] - a[sorter]
+        });
+        lessSchools = schools.filter(school => {
+          return school[sorter] === "0-5"
+        })
+        newSchools = newSchools.concat(lessSchools);
+        this.setState({sort: 'acs'})
+      }
+      this.setState({feederData: newSchools})
+    }
 
 
     render(){
@@ -153,34 +159,42 @@ class Schools extends React.Component {
         if(this.state.data === []) return <div>Oops...</div>;
         let otherDataSet = this.state.data;
         let filteredSchools = this.state.feederData;
-        // console.log('otherDataSet', otherDataSet)
-        // console.log('this.state.data', this.state.data)
-        // console.log('this.state.feederData', this.state.feederData)
+        let districts = [...Array(32).keys()].map(el => el+1);
+        districts.push(79)
+        districts.push(84)
+        console.log("dist", districts)
         return(
-            <div>
-                <button onClick={this.handleSubmit}>Compare</button>
+            <div className='schools-main'>
+                
                 <Modal 
                   isOpened={this.state.isOpened} 
                   modalContent={this.modalContent}
                   onKeyDown={this.onKeyDown}
                   onClickOutside={this.onClickOutside}
                   closeModal={this.closeModal} 
-                  />
-                {/* <Link to={{
-                    pathname: '/selected',
-                    state: {
-                        selected: this.state.selected
-                    }
-                }}>Compare</Link> */}
-            
+                  />  
+                  
+            <div className='schools-top'>
+                <button onClick={this.handleSubmit}>Compare</button>  
+            </div>       
+                        
             <ul>
-                <li className='table'>
+                <div className='fixed'>
+                 <li className='table'>
+               
                     <div className='tab-1'>Select</div>
-                    <div className='tab-2'>District</div>
+                    <div className='tab-2' >District
+                        <select onChange={this.updateDistrict}> 
+                          <option  value='All'>All</option>
+                          {districts.map(dist => {
+                            return <option key={dist} value={dist}>{dist}</option>
+                          })}
+                        </select>
+                    </div>
                     <div className='tab-3'>Name</div>
-                    <div className='tab-4'>Number of students</div>
-                    <div className='tab-5'>Number of testers</div>
-                    <div className='tab-6'>Number of offers</div>
+                    <div className='tab-4' onClick={this.toggleSort} data-sort="count_of_students_in_hs">Number of students</div>
+                    <div className='tab-5' onClick={this.toggleSort} data-sort="count_of_testers">Number of testers</div>
+                    <div className='tab-6' onClick={this.toggleSort} data-sort="number_of_offers">Number of offers</div>
                     <div className='tab-7'>Avg. Incoming ELA Prof.</div>
                     <div className='tab-8'>Avg. Incoming Math Prof.</div>
                     <div className='tab-9'>W</div>
@@ -188,7 +202,9 @@ class Schools extends React.Component {
                     <div className='tab-11'>A</div>
                     <div className='tab-12'>H</div>
                     <div className='tab-13'>ELL learner</div>
-                </li>
+                    </li>
+                  </div>
+                
                 {
                 filteredSchools.map((object, idx) => {
                     let otherData = otherDataSet.filter((object2) => {
