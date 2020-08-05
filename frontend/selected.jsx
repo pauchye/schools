@@ -65,7 +65,7 @@ class Selected extends React.Component {
             <div className="selected-main">        
                 <div className="selected-button" onClick={this.handleClick}>Back</div>        
                 <table className="selected-body">
-                    <tbody>
+                    <tbody >
                         <tr>
                             <th colspan="100%" className="table-head">
                                 Middle School Name
