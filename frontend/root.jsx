@@ -4,6 +4,7 @@ import Schools from './schools'
 import Selected from './selected'
 import ShowSchool from './showSchool'
 import Header from './header'
+import Footer from './footer'
 
 const Root = () => (
   <HashRouter>
@@ -14,6 +15,7 @@ const Root = () => (
         <Route exact path="/selected" component={Selected} />
         <Route exact path="/show" component={ShowSchool} />
       </Switch>
+      <Footer />
       
       
     </div>

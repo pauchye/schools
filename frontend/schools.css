@@ -185,3 +185,8 @@ input {
     padding: 4px;
     width: 90%;
 }
+
+.school-name:hover {
+    cursor: pointer;
+    font-weight: 600;
+}

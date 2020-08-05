@@ -119,11 +119,11 @@ function ShowSchool(props) {
                 </div>
                 <div>
                     <div>Percent of teachers with 3 or more years of experience</div>
-                    <div>{school["otherData"]["Percent of teachers with 3 or more years of experience"]}</div>
+                    <div>{(school["otherData"]["Percent of teachers with 3 or more years of experience"]*100).toFixed(1).toString() + ' %'}</div>
                 </div>
                 <div>
                     <div>Percent of Students Chronically Absent</div>
-                    <div>{school["otherData"]["Percent of Students Chronically Absent"]}</div>
+                    <div>{(school["otherData"]["Percent of Students Chronically Absent"]*100).toFixed(1).toString() + ' %'}</div>
                 </div>   
         </div>
     )

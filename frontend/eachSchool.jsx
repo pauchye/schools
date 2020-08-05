@@ -9,7 +9,7 @@ function EachSchool(props){
                     <input name={props.name} type="checkbox" checked={props.isChecked} onChange={props.handleCheckChildElement}/>
                 </div>
                 <div className='tab-2'>{props.data.feeder_school_dbn.slice(0, 2)}</div>
-                <div className='tab-3' data-data={JSON.stringify(props)} onClick={props.handleOpenModal}>{props.data.feeder_school_name}</div>
+                <div className='tab-3 school-name' data-data={JSON.stringify(props)} onClick={props.handleOpenModal}>{props.data.feeder_school_name}</div>
                 {/* <div className='tab-3' onClick={() => {
                     let selectedSchool = JSON.stringify(props);
                     localStorage.setItem('selectedSchool', selectedSchool)

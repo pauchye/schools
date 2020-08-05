@@ -1,11 +1,19 @@
 import React from 'react'
 import './header.css'
 
+function handleClick(){
+    localStorage.clear()
+    location.hash = '/'
+}
+
 function Header() {
+
+    
+
     return(
         <div className="header-main">
             <div className="header-left"> 
-                <div className="header-logo">
+                <div className="header-logo" onClick={handleClick}>
                     {/* <div >Smart hat</div>   */}
                     <i className="fas fa-graduation-cap fa-4x" style={{fontsize: "98px", color:"white"}}></i>
                     

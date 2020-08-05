@@ -57,3 +57,38 @@ a {
     font-size: 16px;
 }
 
+.footer-main {
+    position: fixed;
+    bottom: 0px;
+    left: 0px;
+    z-index: 1;
+    background-color: rgb(212, 205, 199);
+    /* border: 2px solid red; */
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    /* align-items: center; */
+    height: 45px;
+    width: 100%;
+    color: white;
+}
+
+.footer-left {
+    padding: 5px;
+    padding-left: 40px;
+}
+
+.footer-right {
+    padding: 10px;
+    padding-right: 30px;
+}
+
+.quick-fix {
+    color: #535353;
+    padding-left: 30px;  
+}
+
+.header-logo:hover {
+    cursor: pointer;
+}
+
