@@ -69,6 +69,8 @@ a {
     justify-content: space-between;
     /* align-items: center; */
     height: 45px;
+    padding-bottom: 0;
+    margin-bottom: 0;
     width: 100%;
     color: white;
 }
