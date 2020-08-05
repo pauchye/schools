@@ -25,7 +25,7 @@
 a {
    text-decoration: none; 
    padding: 6px;
-   color: gray;
+   color:  rgb(109, 109, 109);
 }
 
 .header-left {
@@ -44,4 +44,16 @@ a {
     margin-top: 3px;
 }
 
+.header-mid-text {
+    font-weight: 400;
+    /* margin: 10px; */
+    padding: 10px;
+    color: rgb(109, 109, 109);
+}
+
+.bold {
+    padding-bottom: 2px;
+    font-weight: 600;
+    font-size: 16px;
+}
 

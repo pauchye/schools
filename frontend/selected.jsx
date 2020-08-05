@@ -1,5 +1,7 @@
 import React from 'react'
 import EachSelected from './eachSelected'
+import './selected.css'
+
 const allSchools = require('./reports/schoolqrep2018.json'); 
 const dummyData = require('./reports/dummydata.json')
 
@@ -26,8 +28,11 @@ class Selected extends React.Component {
         if(!this.state) return <div>Loading...</div>
         console.log('this.state', this.state)
         return(
-            <div>        
-                <div onClick={this.handleClick}>Back</div>                
+            <div className="selected-main">        
+                <div className="selected-button" onClick={this.handleClick}>Back</div>        
+                <div className="selected-body">
+
+                          
                 {this.state.selected.map((object, idx) => {
                     let otherData = otherDataSet.filter((object2) => {
                       return object2["DBN"] === object.feeder_school_dbn
@@ -41,6 +46,7 @@ class Selected extends React.Component {
                         otherData={otherData[0]} 
                    />
                 })}
+                </div>  
             </div>
         )
     }

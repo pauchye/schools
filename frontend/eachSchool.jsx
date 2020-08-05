@@ -3,7 +3,7 @@ import './schools.css'
 
 function EachSchool(props){
     return(
-        <div>
+        <div className='each-line'>
             <li className='table'>
                 <div className='tab-1'>
                     <input name={props.name} type="checkbox" checked={props.isChecked} onChange={props.handleCheckChildElement}/>
@@ -20,11 +20,11 @@ function EachSchool(props){
                 <div className='tab-6'>{props.data.number_of_offers}</div>
                 <div className='tab-7'>{props.otherData['Average Incoming ELA Proficiency (Based on 5th Grade)']}</div>
                 <div className='tab-8'>{props.otherData['Average Incoming Math Proficiency (Based on 5th Grade)']}</div>
-                <div className='tab-9'>{(props.otherData['Percent White']*100).toFixed(1).toString()+' %'}</div>
-                <div className='tab-10'>{(props.otherData['Percent Black']*100).toFixed(1).toString()+' %'}</div>
-                <div className='tab-11'>{(props.otherData['Percent Asian']*100).toFixed(1).toString()+' %'}</div>
-                <div className='tab-12'>{(props.otherData['Percent Hispanic']*100).toFixed(1).toString()+' %'}</div>
-                <div className='tab-13'>{(props.otherData['Percent English Language Learners']*100).toFixed(1).toString()+' %'}</div>
+                <div className='tab-9'>{(props.otherData['Percent White']*100).toFixed(1).toString()}</div>
+                <div className='tab-10'>{(props.otherData['Percent Black']*100).toFixed(1).toString()}</div>
+                <div className='tab-11'>{(props.otherData['Percent Asian']*100).toFixed(1).toString()}</div>
+                <div className='tab-12'>{(props.otherData['Percent Hispanic']*100).toFixed(1).toString()}</div>
+                <div className='tab-13'>{(props.otherData['Percent English Language Learners']*100).toFixed(1).toString()}</div>
             </li>
         </div>
         

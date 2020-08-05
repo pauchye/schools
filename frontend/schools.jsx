@@ -8,6 +8,22 @@ import Modal from './modal'
 const allSchools = require('./reports/schoolqrep2018.json'); 
 const dummyData = require('./reports/dummydata.json')
 
+function debounce(fn, time) {
+  let timeoutHandle = null;
+  let lastArgs = null;
+
+  return function(...args) {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+    const that = this;
+    lastArgs = args;
+    timeoutHandle = setTimeout(() => {
+      fn.apply(that, lastArgs);
+    }, time);
+  }
+}
+
 class Schools extends React.Component {
     constructor(){
         super()
@@ -29,6 +45,7 @@ class Schools extends React.Component {
         this.toggleScrollLock = this.toggleScrollLock.bind(this)
         this.updateDistrict = this.updateDistrict.bind(this)
         this.toggleSort = this.toggleSort.bind(this)
+        this.handleSearch = this.handleSearch.bind(this)
     }
 
     componentDidMount(){
@@ -105,26 +122,27 @@ class Schools extends React.Component {
     updateDistrict(event) {
         event.persist();
         // debugger
-        let allSchools;
+        let allSchools = JSON.parse(localStorage.getItem('storeData'));
         if (event.target.value !== "All"){
-          allSchools = this.state.feederData.filter(sch => {
+          allSchools = allSchools.filter(sch => {
             return parseInt(sch.feeder_school_dbn.slice(0, 2)) === parseInt(event.target.value)
           });
-          console.log('all dist', allSchools[0])
-        } else {
+          // console.log('all dist', allSchools[0])
+        } 
+        // else {
 
-          allSchools = JSON.parse(localStorage.getItem('storeData'))
+        //   allSchools = JSON.parse(localStorage.getItem('storeData'))
           
-          console.log('all all', allSchools)
-        }
+        //   console.log('all all', allSchools)
+        // }
         // debugger
         this.setState({feederData: allSchools})
     }
 
 
     toggleSort(event) {
-      let sorter = event.target.dataset.sort;
-      let schools = this.state.feederData;
+      let sorter = event.target.dataset.sort || event.target.parentNode.dataset.sort;
+      let schools = this.state.feederData ;
       let newSchools;
       let lessSchools;
       if(this.state.sort === 'acs'){
@@ -137,7 +155,9 @@ class Schools extends React.Component {
           return school[sorter] === "0-5"
         })
         newSchools = lessSchools.concat(newSchools);
+        this.setState({feederData: newSchools})
         this.setState({sort: 'desc'})
+        debugger
       } else {
         newSchools = schools.filter(school => {
           return school[sorter] !== "0-5"
@@ -148,9 +168,20 @@ class Schools extends React.Component {
           return school[sorter] === "0-5"
         })
         newSchools = newSchools.concat(lessSchools);
+        this.setState({feederData: newSchools})
         this.setState({sort: 'acs'})
       }
-      this.setState({feederData: newSchools})
+      
+    }
+
+    handleSearch(event){
+      event.persist();
+        if(!this.debounced) {
+            this.debounced = debounce(() => {
+                    this.setState({filter: event.target.value})
+             }, 600);
+        }
+        this.debounced();
     }
 
 
@@ -162,7 +193,15 @@ class Schools extends React.Component {
         let districts = [...Array(32).keys()].map(el => el+1);
         districts.push(79)
         districts.push(84)
-        console.log("dist", districts)
+        if(this.state.filter){
+          filteredSchools = filteredSchools.filter(school => {
+            // console.log('school',school)
+              return school.feeder_school_name.toUpperCase().indexOf(this.state.filter.toUpperCase()) >= 0
+              // return school.feeder_school_name.split(" ").map((el) => { return el.toUpperCase()}).includes(this.state.filter.toUpperCase())
+        });
+      }
+        // console.log("dist", districts)
+        let arrow = this.state.sort === "acs" ? <i className="fas fa-angle-down fa-lg space"></i> : <i className="fas fa-angle-up fa-lg space"></i>
         return(
             <div className='schools-main'>
                 
@@ -174,15 +213,18 @@ class Schools extends React.Component {
                   closeModal={this.closeModal} 
                   />  
                   
-            <div className='schools-top'>
+            {/* <div className='schools-top'>
                 <button onClick={this.handleSubmit}>Compare</button>  
-            </div>       
+            </div>        */}
                         
             <ul>
                 <div className='fixed'>
                  <li className='table'>
                
-                    <div className='tab-1'>Select</div>
+                    <div className='tab-1'>
+                      <div>Select</div>
+                      <button className='compare-button' onClick={this.handleSubmit}>COMPARE</button>  
+                    </div>
                     <div className='tab-2' >District
                         <select onChange={this.updateDistrict}> 
                           <option  value='All'>All</option>
@@ -191,20 +233,34 @@ class Schools extends React.Component {
                           })}
                         </select>
                     </div>
-                    <div className='tab-3'>Name</div>
-                    <div className='tab-4' onClick={this.toggleSort} data-sort="count_of_students_in_hs">Number of students</div>
-                    <div className='tab-5' onClick={this.toggleSort} data-sort="count_of_testers">Number of testers</div>
-                    <div className='tab-6' onClick={this.toggleSort} data-sort="number_of_offers">Number of offers</div>
+                    <div className='tab-3'>
+                      <div>Name</div>
+                      <input type="text" onChange={this.handleSearch}/>
+                      </div>
+                    <div className='tab-4' onClick={this.toggleSort} data-sort="count_of_students_in_hs">Number of students
+                    {/* <i class="fas fa-angle-down"></i> */}
+                      {arrow}
+                    </div>
+                    <div className='tab-5' onClick={this.toggleSort} data-sort="count_of_testers">Number of testers
+                    {/* <i class="fas fa-angle-down"></i> */}
+                      {arrow}
+                    </div>
+                    <div className='tab-6' onClick={this.toggleSort} data-sort="number_of_offers">Number of offers
+                    {/* <i class="fas fa-angle-down"></i> */}
+                      {arrow}
+                    </div>
                     <div className='tab-7'>Avg. Incoming ELA Prof.</div>
                     <div className='tab-8'>Avg. Incoming Math Prof.</div>
-                    <div className='tab-9'>W</div>
-                    <div className='tab-10'>B</div>
-                    <div className='tab-11'>A</div>
-                    <div className='tab-12'>H</div>
-                    <div className='tab-13'>ELL learner</div>
+                    <div className='tab-9'>W %</div>
+                    <div className='tab-10'>B %</div>
+                    <div className='tab-11'>A %</div>
+                    <div className='tab-12'>H %</div>
+                    <div className='tab-13'>ELL learner %</div>
                     </li>
                   </div>
-                
+                <div className='pos-top'>
+
+               
                 {
                 filteredSchools.map((object, idx) => {
                     let otherData = otherDataSet.filter((object2) => {
@@ -233,6 +289,7 @@ class Schools extends React.Component {
                         // }}
                         />
                 })}
+               </div>  
             </ul>
             </div>
         )

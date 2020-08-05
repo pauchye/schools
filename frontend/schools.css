@@ -17,11 +17,19 @@ html, body {
 ul {
     width: 95%;
     position: absolute;
-    top: 0px;
+    top: 6px;
     margin-top: 0px;
+    margin-bottom: 0px;
+    padding-left: 0px;
+    margin-left: 40px;
+    background-color: rgb(240, 231, 224);
 }
 
-.schools-top {
+.each-line:nth-child(even) {
+    background-color: rgb(255, 246, 241);
+} 
+
+/* .schools-top {
     position: fixed;
     top: 60px;
     left: 40px;
@@ -29,88 +37,151 @@ ul {
     padding: 8px;
     background-color: white;
     z-index: 2;
+} */
+
+.pos-top {
+    position: relative;
+    top: 10px;
+    z-index: 0;
 }
 
 .fixed{
     position: fixed;
     width: 95%;
-    top: 90px;
+    top: 60px;
     /* margin: 10px 0px; */
     background-color: white;
+    z-index: 2;
+}
+
+.each-line {
+    
+    /* border-bottom: 1px solid lightgrey; */
+    margin-bottom: 0px;
+    margin-top: 0px;
 }
 
 .table{
     display: grid;
-    grid-template-columns: 5% 5% 30% 7% 7% 6% 10% 10% 4% 4% 4% 4% 4%;
-    padding-bottom: 10px;
-    padding-top: 10px;
+    grid-template-columns: 6% 5% 33% 7% 7% 6% 8% 8% 4% 4% 4% 4% 4%;
+    /* padding-bottom: 5px;
+    padding-top: 5px; */
     border: 1 solid lightgrey;
     padding-left: 10px;
     font-weight: 400;
+    
 }
 
 .tab-1 {
+    padding: 5px;
+    padding-left: 0;
+    margin-left: 0;
     grid-column: 1;
-    border-left: 1px solid gray;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* justify-content: center; */
 }
 
 .tab-2 {
+    padding: 5px;
     grid-column: 2;
-    border-left: 1px solid gray;
+    border-left: 1px solid lightgrey;
 }
 
 .tab-3 {
+    padding: 5px;
     grid-column: 3;
-    border-left: 1px solid gray;
+    border-left: 1px solid lightgrey;
 }
 
 .tab-4 {
+    background-color: rgba(0, 255, 242, 0.151);
+    padding: 5px;
     grid-column: 4;
-    border-left: 1px solid gray;
+    border-left: 1px solid lightgrey;
 }
 
 .tab-5 {
+    background-color: rgba(255, 160, 36, 0.055);
+    padding: 5px;
     grid-column: 5;
-    border-left: 1px solid gray;
+    border-left: 1px solid lightgrey;
 }
 
 .tab-6 {
+    background-color: rgba(0, 255, 242, 0.151);
+    padding: 5px;
     grid-column: 6;
-    border-left: 1px solid gray;
+    border-left: 1px solid lightgrey;
 }
 
 .tab-7 {
+    padding: 5px;
     grid-column: 7;
-    border-left: 1px solid gray;
+    border-left: 1px solid lightgrey;
 }
 
 .tab-8 {
+    padding: 5px;
     grid-column: 8;
-    border-left: 1px solid gray;
+    border-left: 1px solid lightgrey;
 }
 
 .tab-9 {
+    padding: 5px;
     grid-column: 9;
-    border-left: 1px solid gray;
+    border-left: 1px solid lightgrey;
 }
 
 .tab-10 {
+    padding: 5px;
     grid-column: 10;
-    border-left: 1px solid gray;
+    border-left: 1px solid lightgrey;
 }
 
 .tab-11 {
+    padding: 5px;
     grid-column: 11;
-    border-left: 1px solid gray;
+    border-left: 1px solid lightgrey;
 }
 
 .tab-12 {
+    padding: 5px;
     grid-column: 12;
-    border-left: 1px solid gray;
+    border-left: 1px solid lightgrey;
 }
 
 .tab-13 {
+    padding: 5px;
     grid-column: 13;
-    border-left: 1px solid gray;
+    border-left: 1px solid lightgrey;
 }
 
+.space {
+    padding: 5px;
+    color: gray;
+}
+
+.compare-button {
+    background-color: #91ebe8;
+    border: none;
+    border-radius: 2px;
+    padding: 5px;
+    margin-top: 5px;
+    box-shadow: 0px 0px 4px 1px rgba(0,0,0,0.27);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+select {
+    margin-top: 5px;
+    padding: 4px;
+    margin-top: 5px; 
+}
+
+input {
+    margin-top: 5px;
+    padding: 4px;
+    width: 90%;
+}

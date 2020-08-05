@@ -14,8 +14,8 @@ function Header() {
                 {/* <div >Feeder schools</div> */}
                 
             </div>
-            <div>
-                <div>Where New York City’s Elite High Schools Get Their Students?</div>
+            <div className="header-mid-text">
+                <div className="bold">Where New York City’s Elite High Schools Get Their Students?</div>
                 <div>See SHSAT Admissions Test Offers By Sending Middle School</div>
             </div>
             <div className="header-right"> 
