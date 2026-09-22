@@ -312,7 +312,7 @@ function Header() {
   }, "Where New York City\u2019s Elite High Schools Get Their Students?"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", null, "See SHSAT Admissions Test Offers By Sending Middle School")), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
     className: "header-right"
   }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("a", {
-    href: "https://data.cityofnewyork.us/Education/2018-2019-SHSAT-Admissions-Test-Offers-By-Sending-/uf53-ree9"
+    href: "https://data.cityofnewyork.us/Education/Specialized-High-Schools-Admissions-Tests-Results/k8ah-28f4"
   }, "DATA LINK 1")), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("a", {
     href: "https://data.cityofnewyork.us/Education/2017-2018-School-Quality-Reports-Elem-Middle-K-8/g6v2-wcvk"
   }, "DATA LINK 2"))));
@@ -525,6 +525,17 @@ module.exports = JSON.parse("[{\"DBN\":\"n/a\",\"School Name\":\"n/a\",\"School 
 
 /***/ }),
 
+/***/ "./frontend/reports/feederSeed.json":
+/*!******************************************!*\
+  !*** ./frontend/reports/feederSeed.json ***!
+  \******************************************/
+/*! exports provided: default */
+/***/ (function(module) {
+
+module.exports = JSON.parse("[]");
+
+/***/ }),
+
 /***/ "./frontend/reports/schoolqrep2018.json":
 /*!**********************************************!*\
   !*** ./frontend/reports/schoolqrep2018.json ***!
@@ -670,6 +681,25 @@ var allSchools = __webpack_require__(/*! ./reports/schoolqrep2018.json */ "./fro
 
 var dummyData = __webpack_require__(/*! ./reports/dummydata.json */ "./frontend/reports/dummydata.json");
 
+var feederSeed = __webpack_require__(/*! ./reports/feederSeed.json */ "./frontend/reports/feederSeed.json"); // NYC Open Data retires per-year dataset ids once superseded; this is the
+// current live "Specialized High Schools Admissions Tests Results" id.
+
+
+var FEEDER_API_URL = "https://data.cityofnewyork.us/resource/k8ah-28f4.json"; // Optional free Socrata app token (avoids throttling on repeated requests).
+
+var SOCRATA_APP_TOKEN = ""; // Socrata derives API field names from column labels, which can drift when
+// a dataset is renamed/consolidated, so accept a couple of known variants.
+
+function normalizeFeederRecord(record) {
+  return {
+    feeder_school_dbn: record.feeder_school_dbn || record.dbn,
+    feeder_school_name: record.feeder_school_name || record.school_name,
+    count_of_students_in_hs: record.count_of_students_in_hs || record.count_of_students_in_hs_admissions,
+    count_of_testers: record.count_of_testers,
+    number_of_offers: record.number_of_offers
+  };
+}
+
 function debounce(fn, time) {
   var timeoutHandle = null;
   var lastArgs = null;
@@ -707,9 +737,11 @@ var Schools = /*#__PURE__*/function (_React$Component) {
       feederData: [],
       selected: [],
       isOpened: false,
-      sort: 'acs'
+      sort: 'acs',
+      feederDataSource: null
     };
     _this.modalContent = null;
+    _this.loadFeederData = _this.loadFeederData.bind(_assertThisInitialized(_this));
     _this.handleCheckChildElement = _this.handleCheckChildElement.bind(_assertThisInitialized(_this));
     _this.handleOpenModal = _this.handleOpenModal.bind(_assertThisInitialized(_this));
     _this.closeModal = _this.closeModal.bind(_assertThisInitialized(_this));
@@ -726,19 +758,53 @@ var Schools = /*#__PURE__*/function (_React$Component) {
   _createClass(Schools, [{
     key: "componentDidMount",
     value: function componentDidMount() {
+      this.loadFeederData();
+    }
+  }, {
+    key: "loadFeederData",
+    value: function loadFeederData() {
       var _this2 = this;
 
-      fetch("https://data.cityofnewyork.us/resource/xuij-x4t4.json").then(function (response) {
+      var headers = SOCRATA_APP_TOKEN ? {
+        'X-App-Token': SOCRATA_APP_TOKEN
+      } : {};
+      fetch(FEEDER_API_URL, {
+        headers: headers
+      }).then(function (response) {
+        if (!response.ok) throw new Error("Feeder data request failed with status ".concat(response.status));
         return response.json();
       }).then(function (response) {
-        console.log('response', response);
+        var feederData = response.map(normalizeFeederRecord);
 
         _this2.setState({
-          feederData: response
+          feederData: feederData,
+          feederDataSource: 'live'
         });
 
-        localStorage.setItem('storeData', JSON.stringify(response)); // debugger
+        localStorage.setItem('storeData', JSON.stringify(feederData));
+      })["catch"](function (error) {
+        console.error('Live feeder data fetch failed, falling back to cached data', error);
+
+        _this2.loadFallbackFeederData();
       });
+    }
+  }, {
+    key: "loadFallbackFeederData",
+    value: function loadFallbackFeederData() {
+      var cached = null;
+
+      try {
+        cached = JSON.parse(localStorage.getItem('storeData'));
+      } catch (error) {
+        cached = null;
+      }
+
+      var feederData = Array.isArray(cached) && cached.length ? cached : feederSeed;
+      this.setState({
+        feederData: feederData,
+        feederDataSource: feederData === cached ? 'cached' : 'seed'
+      });
+      localStorage.setItem('storeData', JSON.stringify(feederData));
     }
   }, {
     key: "handleCheckChildElement",
@@ -935,7 +1001,11 @@ var Schools = /*#__PURE__*/function (_React$Component) {
         onKeyDown: this.onKeyDown,
         onClickOutside: this.onClickOutside,
         closeModal: this.closeModal
-      }), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("ul", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+      }), this.state.feederDataSource === 'cached' && /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+        className: "data-source-banner"
+      }, "Live admissions data is unavailable right now \u2014 showing the last data loaded in this browser."), this.state.feederDataSource === 'seed' && /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+        className: "data-source-banner"
+      }, "Live admissions data is unavailable right now \u2014 showing a bundled snapshot, which may be out of date."), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("ul", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
         className: "fixed"
       }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("li", {
         className: "table"
@@ -1363,7 +1433,7 @@ module.exports = exports;
 var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(/*! ../node_modules/css-loader/dist/runtime/api.js */ "./node_modules/css-loader/dist/runtime/api.js");
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
-exports.push([module.i, "html, body {\n    width: 100%;\n    font-family: sans-serif;\n    height: 100%;\n}\n\n.schools-main{\n    position: absolute;\n    left: 0px;\n    top: 100px;\n    width: 100%;\n    margin: 10px 0px;\n    display: flex;\n    flex-direction: column;\n}\n\nul {\n    width: 95%;\n    position: absolute;\n    top: 6px;\n    margin-top: 0px;\n    margin-bottom: 0px;\n    padding-left: 0px;\n    margin-left: 40px;\n    background-color: rgb(240, 231, 224);\n}\n\n.each-line:nth-child(even) {\n    background-color: rgb(255, 246, 241);\n} \n\n/* .schools-top {\n    position: fixed;\n    top: 60px;\n    left: 40px;\n    width: 100%;\n    padding: 8px;\n    background-color: white;\n    z-index: 2;\n} */\n\n.pos-top {\n    position: relative;\n    top: 10px;\n    z-index: 0;\n}\n\n.fixed{\n    position: fixed;\n    width: 95%;\n    top: 60px;\n    /* margin: 10px 0px; */\n    background-color: white;\n    z-index: 2;\n}\n\n.each-line {\n    \n    /* border-bottom: 1px solid lightgrey; */\n    margin-bottom: 0px;\n    margin-top: 0px;\n}\n\n.table{\n    display: grid;\n    grid-template-columns: 6% 5% 33% 7% 7% 6% 8% 8% 4% 4% 4% 4% 4%;\n    /* padding-bottom: 5px;\n    padding-top: 5px; */\n    border: 1 solid lightgrey;\n    padding-left: 10px;\n    font-weight: 400;\n    \n}\n\n.tab-1 {\n    padding: 5px;\n    padding-left: 0;\n    margin-left: 0;\n    grid-column: 1;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    /* justify-content: center; */\n}\n\n.tab-2 {\n    padding: 5px;\n    grid-column: 2;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-3 {\n    padding: 5px;\n    grid-column: 3;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-4 {\n    background-color: rgba(0, 255, 242, 0.151);\n    padding: 5px;\n    grid-column: 4;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-5 {\n    background-color: rgba(255, 160, 36, 0.055);\n    padding: 5px;\n    grid-column: 5;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-6 {\n    background-color: rgba(0, 255, 242, 0.151);\n    padding: 5px;\n    grid-column: 6;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-7 {\n    padding: 5px;\n    grid-column: 7;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-8 {\n    padding: 5px;\n    grid-column: 8;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-9 {\n    padding: 5px;\n    grid-column: 9;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-10 {\n    padding: 5px;\n    grid-column: 10;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-11 {\n    padding: 5px;\n    grid-column: 11;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-12 {\n    padding: 5px;\n    grid-column: 12;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-13 {\n    padding: 5px;\n    grid-column: 13;\n    border-left: 1px solid lightgrey;\n}\n\n.space {\n    padding: 5px;\n    color: gray;\n}\n\n.compare-button {\n    background-color: #91ebe8;\n    border: none;\n    border-radius: 2px;\n    padding: 5px;\n    margin-top: 5px;\n    box-shadow: 0px 0px 4px 1px rgba(0,0,0,0.27);\n    font-weight: 600;\n    cursor: pointer;\n}\n\nselect {\n    margin-top: 5px;\n    padding: 4px;\n    margin-top: 5px; \n}\n\ninput {\n    margin-top: 5px;\n    padding: 4px;\n    width: 90%;\n}\n\n.school-name:hover {\n    cursor: pointer;\n    font-weight: 600;\n}", ""]);
+exports.push([module.i, "html, body {\n    width: 100%;\n    font-family: sans-serif;\n    height: 100%;\n}\n\n.schools-main{\n    position: absolute;\n    left: 0px;\n    top: 100px;\n    width: 100%;\n    margin: 10px 0px;\n    display: flex;\n    flex-direction: column;\n}\n\nul {\n    width: 95%;\n    position: absolute;\n    top: 6px;\n    margin-top: 0px;\n    margin-bottom: 0px;\n    padding-left: 0px;\n    margin-left: 40px;\n    background-color: rgb(240, 231, 224);\n}\n\n.each-line:nth-child(even) {\n    background-color: rgb(255, 246, 241);\n}\n\n.data-source-banner {\n    position: absolute;\n    top: 70px;\n    left: 40px;\n    width: calc(95% - 16px);\n    padding: 8px;\n    background-color: #fff3cd;\n    color: #664d03;\n    font-size: 14px;\n    z-index: 2;\n}\n\n/* .schools-top {\n    position: fixed;\n    top: 60px;\n    left: 40px;\n    width: 100%;\n    padding: 8px;\n    background-color: white;\n    z-index: 2;\n} */\n\n.pos-top {\n    position: relative;\n    top: 10px;\n    z-index: 0;\n}\n\n.fixed{\n    position: fixed;\n    width: 95%;\n    top: 60px;\n    /* margin: 10px 0px; */\n    background-color: white;\n    z-index: 2;\n}\n\n.each-line {\n    \n    /* border-bottom: 1px solid lightgrey; */\n    margin-bottom: 0px;\n    margin-top: 0px;\n}\n\n.table{\n    display: grid;\n    grid-template-columns: 6% 5% 33% 7% 7% 6% 8% 8% 4% 4% 4% 4% 4%;\n    /* padding-bottom: 5px;\n    padding-top: 5px; */\n    border: 1 solid lightgrey;\n    padding-left: 10px;\n    font-weight: 400;\n    \n}\n\n.tab-1 {\n    padding: 5px;\n    padding-left: 0;\n    margin-left: 0;\n    grid-column: 1;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    /* justify-content: center; */\n}\n\n.tab-2 {\n    padding: 5px;\n    grid-column: 2;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-3 {\n    padding: 5px;\n    grid-column: 3;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-4 {\n    background-color: rgba(0, 255, 242, 0.151);\n    padding: 5px;\n    grid-column: 4;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-5 {\n    background-color: rgba(255, 160, 36, 0.055);\n    padding: 5px;\n    grid-column: 5;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-6 {\n    background-color: rgba(0, 255, 242, 0.151);\n    padding: 5px;\n    grid-column: 6;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-7 {\n    padding: 5px;\n    grid-column: 7;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-8 {\n    padding: 5px;\n    grid-column: 8;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-9 {\n    padding: 5px;\n    grid-column: 9;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-10 {\n    padding: 5px;\n    grid-column: 10;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-11 {\n    padding: 5px;\n    grid-column: 11;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-12 {\n    padding: 5px;\n    grid-column: 12;\n    border-left: 1px solid lightgrey;\n}\n\n.tab-13 {\n    padding: 5px;\n    grid-column: 13;\n    border-left: 1px solid lightgrey;\n}\n\n.space {\n    padding: 5px;\n    color: gray;\n}\n\n.compare-button {\n    background-color: #91ebe8;\n    border: none;\n    border-radius: 2px;\n    padding: 5px;\n    margin-top: 5px;\n    box-shadow: 0px 0px 4px 1px rgba(0,0,0,0.27);\n    font-weight: 600;\n    cursor: pointer;\n}\n\nselect {\n    margin-top: 5px;\n    padding: 4px;\n    margin-top: 5px; \n}\n\ninput {\n    margin-top: 5px;\n    padding: 4px;\n    width: 90%;\n}\n\n.school-name:hover {\n    cursor: pointer;\n    font-weight: 600;\n}", ""]);
 // Exports
 module.exports = exports;
 
