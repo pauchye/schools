@@ -5,8 +5,27 @@ import './schools.css'
 import Modal from './modal'
 
 // import all from "./reports/schoolqrep2018.js";
-const allSchools = require('./reports/schoolqrep2018.json'); 
+const allSchools = require('./reports/schoolqrep2018.json');
 const dummyData = require('./reports/dummydata.json')
+const feederSeed = require('./reports/feederSeed.json')
+
+// NYC Open Data retires per-year dataset ids once superseded; this is the
+// current live "Specialized High Schools Admissions Tests Results" id.
+const FEEDER_API_URL = "https://data.cityofnewyork.us/resource/k8ah-28f4.json"
+// Optional free Socrata app token (avoids throttling on repeated requests).
+const SOCRATA_APP_TOKEN = ""
+
+// Socrata derives API field names from column labels, which can drift when
+// a dataset is renamed/consolidated, so accept a couple of known variants.
+function normalizeFeederRecord(record) {
+  return {
+    feeder_school_dbn: record.feeder_school_dbn || record.dbn,
+    feeder_school_name: record.feeder_school_name || record.school_name,
+    count_of_students_in_hs: record.count_of_students_in_hs || record.count_of_students_in_hs_admissions,
+    count_of_testers: record.count_of_testers,
+    number_of_offers: record.number_of_offers,
+  }
+}
 
 function debounce(fn, time) {
   let timeoutHandle = null;
@@ -32,10 +51,12 @@ class Schools extends React.Component {
             feederData: [],
             selected: [],
             isOpened: false,
-            sort: 'acs'
+            sort: 'acs',
+            feederDataSource: null
         }
         this.modalContent = null
 
+        this.loadFeederData = this.loadFeederData.bind(this)
         this.handleCheckChildElement = this.handleCheckChildElement.bind(this)
         this.handleOpenModal = this.handleOpenModal.bind(this)
         this.closeModal = this.closeModal.bind(this)
@@ -49,16 +70,35 @@ class Schools extends React.Component {
     }
 
     componentDidMount(){
-        fetch("https://data.cityofnewyork.us/resource/xuij-x4t4.json").then(response => {
-            return response.json()}
-        ).then(response => {
-            console.log('response', response)
-            this.setState({ feederData: response })
-            localStorage.setItem('storeData', JSON.stringify(response))
-            // debugger
+        this.loadFeederData()
+    }
+
+    loadFeederData(){
+        const headers = SOCRATA_APP_TOKEN ? { 'X-App-Token': SOCRATA_APP_TOKEN } : {}
+        fetch(FEEDER_API_URL, { headers }).then(response => {
+            if (!response.ok) throw new Error(`Feeder data request failed with status ${response.status}`)
+            return response.json()
+        }).then(response => {
+            const feederData = response.map(normalizeFeederRecord)
+            this.setState({ feederData, feederDataSource: 'live' })
+            localStorage.setItem('storeData', JSON.stringify(feederData))
+        }).catch(error => {
+            console.error('Live feeder data fetch failed, falling back to cached data', error)
+            this.loadFallbackFeederData()
         })
     }
 
+    loadFallbackFeederData(){
+        let cached = null
+        try {
+            cached = JSON.parse(localStorage.getItem('storeData'))
+        } catch (error) {
+            cached = null
+        }
+        const feederData = (Array.isArray(cached) && cached.length) ? cached : feederSeed
+        this.setState({ feederData, feederDataSource: (feederData === cached) ? 'cached' : 'seed' })
+        localStorage.setItem('storeData', JSON.stringify(feederData))
+    }
 
     handleCheckChildElement(event){
         let schools = this.state.feederData
@@ -210,9 +250,14 @@ class Schools extends React.Component {
                   modalContent={this.modalContent}
                   onKeyDown={this.onKeyDown}
                   onClickOutside={this.onClickOutside}
-                  closeModal={this.closeModal} 
-                  />  
-                  
+                  closeModal={this.closeModal}
+                  />
+
+            {this.state.feederDataSource === 'cached' &&
+              <div className='data-source-banner'>Live admissions data is unavailable right now — showing the last data loaded in this browser.</div>}
+            {this.state.feederDataSource === 'seed' &&
+              <div className='data-source-banner'>Live admissions data is unavailable right now — showing a bundled snapshot, which may be out of date.</div>}
+
             {/* <div className='schools-top'>
                 <button onClick={this.handleSubmit}>Compare</button>  
             </div>        */}

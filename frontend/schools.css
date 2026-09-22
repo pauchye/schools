@@ -27,7 +27,19 @@ ul {
 
 .each-line:nth-child(even) {
     background-color: rgb(255, 246, 241);
-} 
+}
+
+.data-source-banner {
+    position: absolute;
+    top: 70px;
+    left: 40px;
+    width: calc(95% - 16px);
+    padding: 8px;
+    background-color: #fff3cd;
+    color: #664d03;
+    font-size: 14px;
+    z-index: 2;
+}
 
 /* .schools-top {
     position: fixed;

@@ -28,7 +28,7 @@ function Header() {
             </div>
             <div className="header-right"> 
                 <div>
-                   <a href="https://data.cityofnewyork.us/Education/2018-2019-SHSAT-Admissions-Test-Offers-By-Sending-/uf53-ree9">DATA LINK 1</a>  
+                   <a href="https://data.cityofnewyork.us/Education/Specialized-High-Schools-Admissions-Tests-Results/k8ah-28f4">DATA LINK 1</a>
                 </div>
                 <div>
                    <a href="https://data.cityofnewyork.us/Education/2017-2018-School-Quality-Reports-Elem-Middle-K-8/g6v2-wcvk">DATA LINK 2</a>  
