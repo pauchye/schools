@@ -676,6 +676,8 @@ var Explore = /*#__PURE__*/function (_React$Component) {
       var _this3 = this;
 
       var _this$props = this.props,
+          schools = _this$props.schools,
+          feederDataSource = _this$props.feederDataSource,
           compareDbns = _this$props.compareDbns,
           savedDbns = _this$props.savedDbns,
           toggleCompare = _this$props.toggleCompare,
@@ -701,7 +703,11 @@ var Explore = /*#__PURE__*/function (_React$Component) {
       }).filter(Boolean);
       return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
         className: "explore-page"
-      }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("section", {
+      }, feederDataSource === 'cached' && /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+        className: "data-source-banner"
+      }, "Live admissions data is unavailable right now \u2014 showing the last data loaded in this browser."), feederDataSource === 'seed' && /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+        className: "data-source-banner"
+      }, "Live admissions data is unavailable right now, and no data has been cached in this browser yet", schools.length === 0 ? ' — there is no fallback data to show.' : ' — showing a small bundled snapshot, which may be out of date.'), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("section", {
         className: "explore-hero"
       }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
         className: "explore-hero-copy"
@@ -911,9 +917,14 @@ var Explore = /*#__PURE__*/function (_React$Component) {
         }
       }, "ELA / MATH"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", null)), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
         className: "results-list"
-      }, list.length === 0 && /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+      }, list.length === 0 && schools.length === 0 && /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
         className: "results-empty"
-      }, "No schools match these filters yet."), list.map(function (school) {
+      }, "No admissions data has loaded yet. Try again in a bit."), list.length === 0 && schools.length > 0 && /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+        className: "results-empty"
+      }, "No schools match these filters. ", /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", {
+        className: "explore-filters-reset",
+        onClick: this.resetFilters
+      }, "Reset filters")), list.map(function (school) {
         return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(_schoolRow__WEBPACK_IMPORTED_MODULE_1__["default"], {
           key: school.dbn,
           school: school,
@@ -1485,7 +1496,9 @@ var MapView = /*#__PURE__*/function (_React$Component) {
     value: function render() {
       var _this2 = this;
 
-      var schools = this.props.schools;
+      var _this$props = this.props,
+          schools = _this$props.schools,
+          feederDataSource = _this$props.feederDataSource;
       var _this$state = this.state,
           search = _this$state.search,
           activeDbn = _this$state.activeDbn;
@@ -1500,6 +1513,16 @@ var MapView = /*#__PURE__*/function (_React$Component) {
       var active = list.find(function (s) {
         return s.dbn === activeDbn;
       }) || list[0];
+
+      if (feederDataSource === 'seed' && schools.length === 0) {
+        return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+          className: "data-source-banner",
+          style: {
+            margin: '16px 40px'
+          }
+        }, "Live admissions data is unavailable right now, and there is no fallback data to show.");
+      }
+
       return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
         className: "map-page"
       }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("aside", {
@@ -1673,6 +1696,10 @@ function _isNativeReflectConstruct() { if (typeof Reflect === "undefined" || !Re
 
 function _getPrototypeOf(o) { _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) { return o.__proto__ || Object.getPrototypeOf(o); }; return _getPrototypeOf(o); }
 
+function _objectWithoutProperties(source, excluded) { if (source == null) return {}; var target = _objectWithoutPropertiesLoose(source, excluded); var key, i; if (Object.getOwnPropertySymbols) { var sourceSymbolKeys = Object.getOwnPropertySymbols(source); for (i = 0; i < sourceSymbolKeys.length; i++) { key = sourceSymbolKeys[i]; if (excluded.indexOf(key) >= 0) continue; if (!Object.prototype.propertyIsEnumerable.call(source, key)) continue; target[key] = source[key]; } } return target; }
+
+function _objectWithoutPropertiesLoose(source, excluded) { if (source == null) return {}; var target = {}; var sourceKeys = Object.keys(source); var key, i; for (i = 0; i < sourceKeys.length; i++) { key = sourceKeys[i]; if (excluded.indexOf(key) >= 0) continue; target[key] = source[key]; } return target; }
+
 
 
 
@@ -1698,8 +1725,37 @@ function normalizeFeederRecord(record) {
     feeder_school_name: record.feeder_school_name || record.school_name,
     count_of_students_in_hs: record.count_of_students_in_hs || record.count_of_students_in_hs_admissions,
     count_of_testers: record.count_of_testers,
-    number_of_offers: record.number_of_offers
+    number_of_offers: record.number_of_offers,
+    year: record.year
   };
+} // The live dataset now carries one row per school PER YEAR (it was
+// consolidated from separate yearly datasets). Without this, every school
+// appears several times, which both inflates the list and gives duplicate
+// React keys -- breaking re-renders on sort/filter. Keep just the latest
+// year's row per DBN.
+
+
+function dedupeByLatestYear(records) {
+  var latestByDbn = {};
+  records.forEach(function (record) {
+    var dbn = record.feeder_school_dbn;
+    if (!dbn) return;
+    var year = parseInt(record.year, 10) || 0;
+    var existing = latestByDbn[dbn];
+
+    if (!existing || year >= existing.__year) {
+      latestByDbn[dbn] = Object.assign({}, record, {
+        __year: year
+      });
+    }
+  });
+  return Object.keys(latestByDbn).map(function (dbn) {
+    var _latestByDbn$dbn = latestByDbn[dbn],
+        __year = _latestByDbn$dbn.__year,
+        rest = _objectWithoutProperties(_latestByDbn$dbn, ["__year"]);
+
+    return rest;
+  });
 }
 
 function loadSet(key) {
@@ -1743,7 +1799,7 @@ var App = /*#__PURE__*/function (_React$Component) {
   }, {
     key: "setSchools",
     value: function setSchools(feederData, feederDataSource) {
-      var schools = Object(_lib_schoolData__WEBPACK_IMPORTED_MODULE_9__["mergeSchools"])(feederData, allSchoolQuality);
+      var schools = Object(_lib_schoolData__WEBPACK_IMPORTED_MODULE_9__["mergeSchools"])(dedupeByLatestYear(feederData), allSchoolQuality);
       var compareDbns = this.state.compareDbns;
       schools.forEach(function (s) {
         s.isChecked = compareDbns.indexOf(s.dbn) >= 0;
@@ -1767,7 +1823,7 @@ var App = /*#__PURE__*/function (_React$Component) {
         if (!response.ok) throw new Error("Feeder data request failed with status ".concat(response.status));
         return response.json();
       }).then(function (response) {
-        var feederData = response.map(normalizeFeederRecord);
+        var feederData = dedupeByLatestYear(response.map(normalizeFeederRecord));
         localStorage.setItem('storeData', JSON.stringify(feederData));
 
         _this2.setSchools(feederData, 'live');
@@ -1997,6 +2053,7 @@ function exportCsv(schools) {
 
 function Saved(_ref) {
   var schools = _ref.schools,
+      feederDataSource = _ref.feederDataSource,
       savedDbns = _ref.savedDbns,
       compareDbns = _ref.compareDbns,
       toggleCompare = _ref.toggleCompare,
@@ -2017,7 +2074,11 @@ function Saved(_ref) {
   }).filter(Boolean);
   return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
     className: "saved-page"
-  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+  }, feederDataSource === 'cached' && /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+    className: "data-source-banner"
+  }, "Live admissions data is unavailable right now \u2014 showing the last data loaded in this browser."), feederDataSource === 'seed' && schools.length === 0 && /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+    className: "data-source-banner"
+  }, "Live admissions data is unavailable right now, and there is no fallback data to show."), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
     className: "saved-header"
   }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("h2", null, "Saved schools"), saved.length > 0 && /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", {
     className: "saved-export",
@@ -2782,7 +2843,7 @@ module.exports = exports;
 var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(/*! ../node_modules/css-loader/dist/runtime/api.js */ "./node_modules/css-loader/dist/runtime/api.js");
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
-exports.push([module.i, ":root {\n  --ink: rgb(28, 27, 25);\n  --ink-60: rgba(28, 27, 25, 0.6);\n  --ink-55: rgba(28, 27, 25, 0.55);\n  --ink-45: rgba(28, 27, 25, 0.45);\n  --ink-25: rgba(28, 27, 25, 0.25);\n  --ink-20: rgba(28, 27, 25, 0.2);\n  --ink-15: rgba(28, 27, 25, 0.15);\n  --ink-10: rgba(28, 27, 25, 0.1);\n  --ink-07: rgba(28, 27, 25, 0.07);\n  --ink-05: rgba(28, 27, 25, 0.05);\n\n  --page-bg: rgb(233, 230, 223);\n  --panel-bg: rgb(247, 245, 240);\n  --card-bg: rgb(255, 255, 255);\n\n  --accent: oklch(0.5 0.15 40);\n  --accent-label: oklch(0.55 0.15 40);\n  --accent-tint: oklch(0.93 0.05 40);\n  --accent-tint-soft: oklch(0.95 0.03 40);\n  --blue: oklch(0.55 0.15 250);\n  --blue-light: oklch(0.82 0.07 250);\n  --tan: oklch(0.75 0.1 80);\n  --green: oklch(0.55 0.1 160);\n\n  --font-serif: \"Instrument Serif\", Georgia, serif;\n  --font-sans: \"Instrument Sans\", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;\n  --font-mono: \"JetBrains Mono\", ui-monospace, monospace;\n\n  --radius-pill: 99px;\n  --radius-card: 12px;\n  --radius-panel: 16px;\n}\n\n* { box-sizing: border-box; }\n\nhtml, body {\n  width: 100%;\n  min-height: 100%;\n  margin: 0;\n  padding: 0;\n  background: var(--page-bg);\n  color: var(--ink);\n  font-family: var(--font-sans);\n  font-size: 16px;\n}\n\na { text-decoration: none; color: inherit; }\n\n.kicker {\n  font: 500 12px var(--font-mono);\n  letter-spacing: 0.08em;\n  color: var(--accent-label);\n  text-transform: uppercase;\n}\n\n.mono-label {\n  font: 500 11px var(--font-mono);\n  color: var(--ink-55);\n  letter-spacing: 0.04em;\n}\n\n.chip {\n  display: inline-flex;\n  align-items: center;\n  padding: 6px 11px;\n  border-radius: var(--radius-pill);\n  font-size: 13px;\n  border: 1px solid var(--ink-20);\n  background: transparent;\n  color: var(--ink);\n  cursor: pointer;\n  user-select: none;\n}\n\n.chip.is-selected {\n  background: var(--ink);\n  color: var(--card-bg);\n  border-color: var(--ink);\n}\n\n.btn {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 6px;\n  border-radius: 10px;\n  border: 1px solid var(--ink-20);\n  background: var(--card-bg);\n  color: var(--ink);\n  font-size: 14px;\n  padding: 12px 16px;\n  cursor: pointer;\n  white-space: nowrap;\n}\n\n.btn.btn-dark {\n  background: var(--ink);\n  color: var(--card-bg);\n  border-color: var(--ink);\n  font-weight: 600;\n}\n\n.btn.btn-accent {\n  background: var(--accent-label);\n  color: var(--card-bg);\n  border-color: var(--accent-label);\n  font-weight: 600;\n}\n\n.card {\n  background: var(--card-bg);\n  border: 1px solid var(--ink-10);\n  border-radius: var(--radius-panel);\n  padding: 28px;\n}\n\n.app-shell {\n  max-width: 1280px;\n  margin: 0 auto;\n  background: var(--panel-bg);\n  min-height: 100vh;\n}\n\n@media (max-width: 900px) {\n  .app-shell { max-width: 100%; }\n}\n", ""]);
+exports.push([module.i, ":root {\n  --ink: rgb(28, 27, 25);\n  --ink-60: rgba(28, 27, 25, 0.6);\n  --ink-55: rgba(28, 27, 25, 0.55);\n  --ink-45: rgba(28, 27, 25, 0.45);\n  --ink-25: rgba(28, 27, 25, 0.25);\n  --ink-20: rgba(28, 27, 25, 0.2);\n  --ink-15: rgba(28, 27, 25, 0.15);\n  --ink-10: rgba(28, 27, 25, 0.1);\n  --ink-07: rgba(28, 27, 25, 0.07);\n  --ink-05: rgba(28, 27, 25, 0.05);\n\n  --page-bg: rgb(233, 230, 223);\n  --panel-bg: rgb(247, 245, 240);\n  --card-bg: rgb(255, 255, 255);\n\n  --accent: oklch(0.5 0.15 40);\n  --accent-label: oklch(0.55 0.15 40);\n  --accent-tint: oklch(0.93 0.05 40);\n  --accent-tint-soft: oklch(0.95 0.03 40);\n  --blue: oklch(0.55 0.15 250);\n  --blue-light: oklch(0.82 0.07 250);\n  --tan: oklch(0.75 0.1 80);\n  --green: oklch(0.55 0.1 160);\n\n  --font-serif: \"Instrument Serif\", Georgia, serif;\n  --font-sans: \"Instrument Sans\", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;\n  --font-mono: \"JetBrains Mono\", ui-monospace, monospace;\n\n  --radius-pill: 99px;\n  --radius-card: 12px;\n  --radius-panel: 16px;\n}\n\n* { box-sizing: border-box; }\n\nhtml, body {\n  width: 100%;\n  min-height: 100%;\n  margin: 0;\n  padding: 0;\n  background: var(--page-bg);\n  color: var(--ink);\n  font-family: var(--font-sans);\n  font-size: 16px;\n}\n\na { text-decoration: none; color: inherit; }\n\n.kicker {\n  font: 500 12px var(--font-mono);\n  letter-spacing: 0.08em;\n  color: var(--accent-label);\n  text-transform: uppercase;\n}\n\n.mono-label {\n  font: 500 11px var(--font-mono);\n  color: var(--ink-55);\n  letter-spacing: 0.04em;\n}\n\n.chip {\n  display: inline-flex;\n  align-items: center;\n  padding: 6px 11px;\n  border-radius: var(--radius-pill);\n  font-size: 13px;\n  border: 1px solid var(--ink-20);\n  background: transparent;\n  color: var(--ink);\n  cursor: pointer;\n  user-select: none;\n}\n\n.chip.is-selected {\n  background: var(--ink);\n  color: var(--card-bg);\n  border-color: var(--ink);\n}\n\n.btn {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 6px;\n  border-radius: 10px;\n  border: 1px solid var(--ink-20);\n  background: var(--card-bg);\n  color: var(--ink);\n  font-size: 14px;\n  padding: 12px 16px;\n  cursor: pointer;\n  white-space: nowrap;\n}\n\n.btn.btn-dark {\n  background: var(--ink);\n  color: var(--card-bg);\n  border-color: var(--ink);\n  font-weight: 600;\n}\n\n.btn.btn-accent {\n  background: var(--accent-label);\n  color: var(--card-bg);\n  border-color: var(--accent-label);\n  font-weight: 600;\n}\n\n.card {\n  background: var(--card-bg);\n  border: 1px solid var(--ink-10);\n  border-radius: var(--radius-panel);\n  padding: 28px;\n}\n\n.data-source-banner {\n  margin: 16px 40px 0;\n  padding: 12px 16px;\n  border-radius: 10px;\n  background: var(--accent-tint-soft);\n  border: 1px solid var(--ink-07);\n  font-size: 13px;\n  color: var(--ink-60);\n}\n\n@media (max-width: 900px) {\n  .data-source-banner { margin: 12px 16px 0; }\n}\n\n.app-shell {\n  max-width: 1280px;\n  margin: 0 auto;\n  background: var(--panel-bg);\n  min-height: 100vh;\n}\n\n@media (max-width: 900px) {\n  .app-shell { max-width: 100%; }\n}\n", ""]);
 // Exports
 module.exports = exports;
 

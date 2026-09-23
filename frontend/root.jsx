@@ -23,7 +23,30 @@ function normalizeFeederRecord(record) {
     count_of_students_in_hs: record.count_of_students_in_hs || record.count_of_students_in_hs_admissions,
     count_of_testers: record.count_of_testers,
     number_of_offers: record.number_of_offers,
+    year: record.year,
   }
+}
+
+// The live dataset now carries one row per school PER YEAR (it was
+// consolidated from separate yearly datasets). Without this, every school
+// appears several times, which both inflates the list and gives duplicate
+// React keys -- breaking re-renders on sort/filter. Keep just the latest
+// year's row per DBN.
+function dedupeByLatestYear(records) {
+  const latestByDbn = {}
+  records.forEach((record) => {
+    const dbn = record.feeder_school_dbn
+    if (!dbn) return
+    const year = parseInt(record.year, 10) || 0
+    const existing = latestByDbn[dbn]
+    if (!existing || year >= existing.__year) {
+      latestByDbn[dbn] = Object.assign({}, record, { __year: year })
+    }
+  })
+  return Object.keys(latestByDbn).map((dbn) => {
+    const { __year, ...rest } = latestByDbn[dbn]
+    return rest
+  })
 }
 
 function loadSet(key) {
@@ -55,7 +78,7 @@ class App extends React.Component {
   }
 
   setSchools(feederData, feederDataSource) {
-    const schools = mergeSchools(feederData, allSchoolQuality)
+    const schools = mergeSchools(dedupeByLatestYear(feederData), allSchoolQuality)
     const { compareDbns } = this.state
     schools.forEach((s) => { s.isChecked = compareDbns.indexOf(s.dbn) >= 0 })
     this.setState({ schools, feederDataSource })
@@ -67,7 +90,7 @@ class App extends React.Component {
       if (!response.ok) throw new Error(`Feeder data request failed with status ${response.status}`)
       return response.json()
     }).then((response) => {
-      const feederData = response.map(normalizeFeederRecord)
+      const feederData = dedupeByLatestYear(response.map(normalizeFeederRecord))
       localStorage.setItem('storeData', JSON.stringify(feederData))
       this.setSchools(feederData, 'live')
     }).catch((error) => {

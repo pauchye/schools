@@ -17,7 +17,7 @@ class MapView extends React.Component {
   }
 
   render() {
-    const { schools } = this.props
+    const { schools, feederDataSource } = this.props
     const { search, activeDbn } = this.state
     const list = schools
       .filter((s) => !search || s.name.toUpperCase().indexOf(search.toUpperCase()) >= 0)
@@ -26,6 +26,14 @@ class MapView extends React.Component {
       .slice(0, 60)
     const maxOffers = Math.max(1, ...list.map((s) => s.offers.value))
     const active = list.find((s) => s.dbn === activeDbn) || list[0]
+
+    if (feederDataSource === 'seed' && schools.length === 0) {
+      return (
+        <div className="data-source-banner" style={{ margin: '16px 40px' }}>
+          Live admissions data is unavailable right now, and there is no fallback data to show.
+        </div>
+      )
+    }
 
     return (
       <div className="map-page">
