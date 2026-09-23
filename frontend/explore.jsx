@@ -84,7 +84,7 @@ class Explore extends React.Component {
   }
 
   render() {
-    const { compareDbns, savedDbns, toggleCompare, toggleSaved, removeFromCompare } = this.props
+    const { schools, feederDataSource, compareDbns, savedDbns, toggleCompare, toggleSaved, removeFromCompare } = this.props
     const { district, boroughs, minOfferRate, maxOfferRate, mathMin, schoolTypes, hideLowOffers, sortBy } = this.state
     const list = this.filteredSchools()
     const maxTesters = Math.max(1, ...list.map((s) => s.testers.value))
@@ -92,6 +92,15 @@ class Explore extends React.Component {
 
     return (
       <div className="explore-page">
+        {feederDataSource === 'cached' && (
+          <div className="data-source-banner">Live admissions data is unavailable right now &mdash; showing the last data loaded in this browser.</div>
+        )}
+        {feederDataSource === 'seed' && (
+          <div className="data-source-banner">
+            Live admissions data is unavailable right now, and no data has been cached in this browser yet
+            {schools.length === 0 ? ' — there is no fallback data to show.' : ' — showing a small bundled snapshot, which may be out of date.'}
+          </div>
+        )}
         <section className="explore-hero">
           <div className="explore-hero-copy">
             <span className="kicker">SHSAT OFFERS BY SENDING MIDDLE SCHOOL</span>
@@ -240,8 +249,11 @@ class Explore extends React.Component {
               <span />
             </div>
             <div className="results-list">
-              {list.length === 0 && (
-                <div className="results-empty">No schools match these filters yet.</div>
+              {list.length === 0 && schools.length === 0 && (
+                <div className="results-empty">No admissions data has loaded yet. Try again in a bit.</div>
+              )}
+              {list.length === 0 && schools.length > 0 && (
+                <div className="results-empty">No schools match these filters. <span className="explore-filters-reset" onClick={this.resetFilters}>Reset filters</span></div>
               )}
               {list.map((school) => (
                 <SchoolRow

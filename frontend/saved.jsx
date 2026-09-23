@@ -21,13 +21,19 @@ function exportCsv(schools) {
   URL.revokeObjectURL(url)
 }
 
-function Saved({ schools, savedDbns, compareDbns, toggleCompare, toggleSaved, removeFromCompare }) {
+function Saved({ schools, feederDataSource, savedDbns, compareDbns, toggleCompare, toggleSaved, removeFromCompare }) {
   const saved = savedDbns.map((dbn) => schools.find((s) => s.dbn === dbn)).filter(Boolean)
   const maxTesters = Math.max(1, ...saved.map((s) => s.testers.value))
   const compareSchools = compareDbns.map((dbn) => schools.find((s) => s.dbn === dbn)).filter(Boolean)
 
   return (
     <div className="saved-page">
+      {feederDataSource === 'cached' && (
+        <div className="data-source-banner">Live admissions data is unavailable right now &mdash; showing the last data loaded in this browser.</div>
+      )}
+      {feederDataSource === 'seed' && schools.length === 0 && (
+        <div className="data-source-banner">Live admissions data is unavailable right now, and there is no fallback data to show.</div>
+      )}
       <div className="saved-header">
         <h2>Saved schools</h2>
         {saved.length > 0 && (
