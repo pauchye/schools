@@ -120,6 +120,48 @@
   color: var(--ink-60);
 }
 
+.detail-admissions-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.detail-admissions-year {
+  color: var(--ink-45);
+}
+
+.detail-history { gap: 14px; }
+
+.detail-history-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-history-row {
+  display: grid;
+  grid-template-columns: 70px repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--ink-07);
+  font-size: 14px;
+}
+
+.detail-history-row:first-child {
+  border-top: none;
+}
+
+.detail-history-head {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--ink-55);
+  padding-bottom: 8px;
+}
+
+.detail-history-rate {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .detail-quality { gap: 18px; }
 
 .detail-quality-head {

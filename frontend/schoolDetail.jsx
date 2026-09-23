@@ -16,9 +16,10 @@ function proficiencyBar(value) {
 
 class SchoolDetail extends React.Component {
   render() {
-    const { schools, compareDbns, savedDbns, toggleCompare, toggleSaved } = this.props
+    const { schools, historyByDbn, compareDbns, savedDbns, toggleCompare, toggleSaved } = this.props
     const dbn = this.props.match.params.dbn
     const school = schools.find((s) => s.dbn === dbn)
+    const history = (historyByDbn && historyByDbn[dbn]) || []
 
     if (!schools.length) return <div className="detail-page detail-loading">Loading…</div>
     if (!school) {
@@ -57,7 +58,10 @@ class SchoolDetail extends React.Component {
         <div className="detail-grid">
           <div className="detail-col">
             <div className="card detail-admissions">
-              <span className="mono-label">FROM 8TH GRADE TO SPECIALIZED HIGH SCHOOL</span>
+              <div className="detail-admissions-head">
+                <span className="mono-label">FROM 8TH GRADE TO SPECIALIZED HIGH SCHOOL</span>
+                {school.year && <span className="mono-value detail-admissions-year">as of {school.year}</span>}
+              </div>
               <div className="detail-stat-row">
                 <div className="detail-stat">
                   <span className="detail-stat-value">{formatSuppressible(school.students8th)}</span>
@@ -88,6 +92,30 @@ class SchoolDetail extends React.Component {
                 </span>
               </div>
             </div>
+
+            {history.length > 1 && (
+              <div className="card detail-history">
+                <span className="mono-label">ADMISSIONS HISTORY</span>
+                <div className="detail-history-table">
+                  <div className="detail-history-row detail-history-head">
+                    <span>Year</span>
+                    <span>8th graders</span>
+                    <span>Tested</span>
+                    <span>Offers</span>
+                    <span>Offer rate</span>
+                  </div>
+                  {history.slice().reverse().map((h) => (
+                    <div className="detail-history-row" key={h.year}>
+                      <span className="mono-value">{h.year}</span>
+                      <span className="mono-value">{formatSuppressible(h.students8th)}</span>
+                      <span className="mono-value">{formatSuppressible(h.testers)}</span>
+                      <span className="mono-value">{formatSuppressible(h.offers)}</span>
+                      <span className="mono-value detail-history-rate">{Math.round(h.offerRate)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="card detail-quality">
               <div className="detail-quality-head">
