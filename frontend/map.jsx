@@ -1,39 +1,126 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
 import './map.css'
 
-function pinSize(offers, maxOffers) {
-  const min = 14
-  const max = 44
+const NYC_CENTER = [40.7128, -74.006]
+
+function pinRadius(offers, maxOffers) {
+  const min = 5
+  const max = 20
   if (maxOffers <= 0) return min
   const scale = Math.sqrt(Math.max(0, offers) / maxOffers)
-  return Math.round(min + (max - min) * scale)
+  return min + (max - min) * scale
+}
+
+function popupHtml(school) {
+  const tested = school.testers.suppressed ? '≤5' : school.testers.value
+  const offers = school.offers.suppressed ? '≤5' : school.offers.value
+  return `
+    <div class="map-popup-inner">
+      <div class="map-popup-head">
+        <span class="map-popup-name">${school.name}</span>
+        <span class="map-popup-rate">${Math.round(school.offerRate)}%</span>
+      </div>
+      <div class="map-popup-bar"><div style="width:${Math.min(100, school.offerRate)}%"></div></div>
+      <span class="map-popup-meta">${tested} tested &middot; ${offers} offers &middot; D${school.district}</span>
+      <a href="#/school/${school.dbn}" class="map-popup-link">View school &rarr;</a>
+    </div>
+  `
 }
 
 class MapView extends React.Component {
   constructor(props) {
     super(props)
-    this.state = { search: '', activeDbn: null }
+    this.state = { search: '', leafletReady: !!window.L }
+    this.mapNode = null
+    this.map = null
+    this.markersByDbn = {}
+  }
+
+  componentDidMount() {
+    if (!window.L) {
+      // The Leaflet CDN script tag is still loading (or failed) -- poll
+      // briefly rather than assume it's unavailable.
+      this.leafletPoll = setInterval(() => {
+        if (window.L) {
+          clearInterval(this.leafletPoll)
+          this.setState({ leafletReady: true }, this.initMap)
+        }
+      }, 150)
+      setTimeout(() => clearInterval(this.leafletPoll), 8000)
+      return
+    }
+    this.initMap()
+  }
+
+  componentDidUpdate(prevProps) {
+    if (this.map && prevProps.schools !== this.props.schools) {
+      this.renderMarkers()
+    }
+  }
+
+  componentWillUnmount() {
+    if (this.leafletPoll) clearInterval(this.leafletPoll)
+    if (this.map) {
+      this.map.remove()
+      this.map = null
+    }
+  }
+
+  initMap() {
+    if (!this.mapNode || this.map) return
+    const L = window.L
+    this.map = L.map(this.mapNode, { scrollWheelZoom: true }).setView(NYC_CENTER, 11)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(this.map)
+    this.renderMarkers()
+  }
+
+  renderMarkers() {
+    const L = window.L
+    if (!L || !this.map) return
+    Object.values(this.markersByDbn).forEach((m) => this.map.removeLayer(m))
+    this.markersByDbn = {}
+
+    const geocoded = this.props.schools.filter((s) => s.geo)
+    const maxOffers = Math.max(1, ...geocoded.map((s) => s.offers.value))
+
+    geocoded.forEach((school) => {
+      const marker = L.circleMarker([school.geo.lat, school.geo.lng], {
+        radius: pinRadius(school.offers.value, maxOffers),
+        color: '#fff',
+        weight: 2,
+        fillColor: '#c2410c',
+        fillOpacity: 0.85,
+      }).addTo(this.map)
+      marker.bindPopup(popupHtml(school))
+      this.markersByDbn[school.dbn] = marker
+    })
+  }
+
+  focusSchool(school) {
+    if (!this.map || !school.geo) return
+    this.map.setView([school.geo.lat, school.geo.lng], 14)
+    const marker = this.markersByDbn[school.dbn]
+    if (marker) marker.openPopup()
   }
 
   render() {
-    const { schools, feederDataSource } = this.props
-    const { search, activeDbn } = this.state
+    const { schools } = this.props
+    const { search } = this.state
+
+    if (!schools.length) {
+      return <div className="data-source-banner" style={{ margin: '16px 40px' }}>No admissions data has loaded yet.</div>
+    }
+
+    const geocodedCount = schools.filter((s) => s.geo).length
     const list = schools
+      .filter((s) => s.geo)
       .filter((s) => !search || s.name.toUpperCase().indexOf(search.toUpperCase()) >= 0)
       .slice()
       .sort((a, b) => b.offers.value - a.offers.value)
-      .slice(0, 60)
-    const maxOffers = Math.max(1, ...list.map((s) => s.offers.value))
-    const active = list.find((s) => s.dbn === activeDbn) || list[0]
-
-    if (feederDataSource === 'seed' && schools.length === 0) {
-      return (
-        <div className="data-source-banner" style={{ margin: '16px 40px' }}>
-          Live admissions data is unavailable right now, and there is no fallback data to show.
-        </div>
-      )
-    }
+      .slice(0, 150)
 
     return (
       <div className="map-page">
@@ -44,17 +131,15 @@ class MapView extends React.Component {
             value={search}
             onChange={(e) => this.setState({ search: e.target.value })}
           />
-          <span className="map-sidebar-hint">{list.length} schools shown &middot; circle size = offers</span>
+          <span className="map-sidebar-hint">
+            {geocodedCount} of {schools.length} schools located &middot; circle size = offers
+          </span>
           <div className="map-list">
             {list.map((s) => (
-              <div
-                key={s.dbn}
-                className={`map-list-item${active && s.dbn === active.dbn ? ' is-active' : ''}`}
-                onClick={() => this.setState({ activeDbn: s.dbn })}
-              >
+              <div key={s.dbn} className="map-list-item" onClick={() => this.focusSchool(s)}>
                 <div className="map-list-item-meta">
                   <span className="map-list-item-name">{s.name}</span>
-                  <span className="map-list-item-sub">D{s.district} &middot; {formatOffers(s)} offers</span>
+                  <span className="map-list-item-sub">D{s.district} &middot; {s.offers.suppressed ? '≤5' : s.offers.value} offers</span>
                 </div>
                 <span className="map-list-item-rate">{Math.round(s.offerRate)}%</span>
               </div>
@@ -63,52 +148,14 @@ class MapView extends React.Component {
         </aside>
 
         <div className="map-canvas">
-          <span className="map-caption">Schematic district-based positions &mdash; not exact addresses</span>
-          <div className="map-zoom">
-            <span>+</span>
-            <span>&minus;</span>
-          </div>
-          {list.map((s) => (
-            <div
-              key={s.dbn}
-              className={`map-pin${active && s.dbn === active.dbn ? ' is-active' : ''}`}
-              style={{
-                left: `${s.mapPos.x * 100}%`,
-                top: `${s.mapPos.y * 100}%`,
-                width: pinSize(s.offers.value, maxOffers),
-                height: pinSize(s.offers.value, maxOffers),
-              }}
-              onClick={() => this.setState({ activeDbn: s.dbn })}
-            />
-          ))}
-          {active && (
-            <div
-              className="map-popup"
-              style={{ left: `${active.mapPos.x * 100}%`, top: `${active.mapPos.y * 100}%` }}
-            >
-              <div className="map-popup-head">
-                <span className="map-popup-name">{active.name}</span>
-                <span className="map-popup-rate">{Math.round(active.offerRate)}%</span>
-              </div>
-              <div className="map-popup-bar">
-                <div style={{ width: `${Math.min(100, active.offerRate)}%` }} />
-              </div>
-              <span className="map-popup-meta">{formatTested(active)} tested &middot; {formatOffers(active)} offers &middot; D{active.district}</span>
-              <Link to={`/school/${active.dbn}`} className="map-popup-link">View school &rarr;</Link>
-            </div>
+          {!this.state.leafletReady && (
+            <div className="map-loading">Loading map…</div>
           )}
+          <div className="map-leaflet-root" ref={(el) => { this.mapNode = el }} />
         </div>
       </div>
     )
   }
-}
-
-function formatOffers(s) {
-  return s.offers.suppressed ? '≤5' : s.offers.value
-}
-
-function formatTested(s) {
-  return s.testers.suppressed ? '≤5' : s.testers.value
 }
 
 export default MapView

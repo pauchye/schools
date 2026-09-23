@@ -1236,6 +1236,42 @@ function approxMapPosition(dbn) {
 
 /***/ }),
 
+/***/ "./frontend/lib/geocode.js":
+/*!*********************************!*\
+  !*** ./frontend/lib/geocode.js ***!
+  \*********************************/
+/*! exports provided: normalizeGeoRecord, buildGeoLookup */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "normalizeGeoRecord", function() { return normalizeGeoRecord; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "buildGeoLookup", function() { return buildGeoLookup; });
+// NYC Open Data's school-location datasets don't share one fixed field-name
+// schema across revisions, so accept the field-name variants that have shown
+// up across NYC DOE location datasets (ats_code/DBN, Latitude/latitude, ...).
+function normalizeGeoRecord(record) {
+  var dbn = record.ats_system_code || record.ats_code || record.atssystemcode || record.DBN || record.dbn || record.location_code;
+  var lat = parseFloat(record.latitude || record.Latitude || record.lat);
+  var lng = parseFloat(record.longitude || record.Longitude || record.lng || record["long"]);
+  if (!dbn || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return {
+    dbn: String(dbn).trim(),
+    lat: lat,
+    lng: lng
+  };
+}
+function buildGeoLookup(records) {
+  var byDbn = {};
+  records.forEach(function (record) {
+    var geo = normalizeGeoRecord(record);
+    if (geo) byDbn[geo.dbn] = geo;
+  });
+  return byDbn;
+}
+
+/***/ }),
+
 /***/ "./frontend/lib/schoolData.js":
 /*!************************************!*\
   !*** ./frontend/lib/schoolData.js ***!
@@ -1307,9 +1343,11 @@ function pct(value) {
 } // Merge one feeder-data (admissions) row with its matching school-quality
 // report row (by DBN) into a single normalized school the rest of the app
 // consumes. `quality` may be undefined for a DBN with no quality report.
+// `geo`, when given a match, provides a real lat/lng; otherwise the school
+// falls back to the schematic (non-geocoded) map position.
 
 
-function normalizeSchool(feederRecord, quality) {
+function normalizeSchool(feederRecord, quality, geo) {
   var dbn = feederRecord.feeder_school_dbn;
   var district = Object(_geo__WEBPACK_IMPORTED_MODULE_0__["districtOf"])(dbn);
   var borough = Object(_geo__WEBPACK_IMPORTED_MODULE_0__["boroughOf"])(district);
@@ -1369,16 +1407,17 @@ function normalizeSchool(feederRecord, quality) {
     studentsWithDisabilities: quality ? pct(quality['Percent Students with Disabilities']) : null,
     hraEligible: quality ? pct(quality['Percent HRA Eligible']) : null,
     mapPos: Object(_geo__WEBPACK_IMPORTED_MODULE_0__["approxMapPosition"])(dbn),
+    geo: geo || null,
     isChecked: false
   };
 }
-function mergeSchools(feederData, qualityReports) {
+function mergeSchools(feederData, qualityReports, geoByDbn) {
   var byDbn = {};
   qualityReports.forEach(function (q) {
     byDbn[q.DBN] = q;
   });
   return feederData.map(function (rec) {
-    return normalizeSchool(rec, byDbn[rec.feeder_school_dbn]);
+    return normalizeSchool(rec, byDbn[rec.feeder_school_dbn], geoByDbn && geoByDbn[rec.feeder_school_dbn]);
   });
 }
 
@@ -1424,9 +1463,8 @@ module.exports = content.locals || {};
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);
-/* harmony import */ var react_router_dom__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react-router-dom */ "./node_modules/react-router-dom/esm/react-router-dom.js");
-/* harmony import */ var _map_css__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./map.css */ "./frontend/map.css");
-/* harmony import */ var _map_css__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(_map_css__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var _map_css__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./map.css */ "./frontend/map.css");
+/* harmony import */ var _map_css__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(_map_css__WEBPACK_IMPORTED_MODULE_1__);
 function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
 
 function _toConsumableArray(arr) { return _arrayWithoutHoles(arr) || _iterableToArray(arr) || _unsupportedIterableToArray(arr) || _nonIterableSpread(); }
@@ -1463,14 +1501,20 @@ function _getPrototypeOf(o) { _getPrototypeOf = Object.setPrototypeOf ? Object.g
 
 
 
+var NYC_CENTER = [40.7128, -74.006];
 
-
-function pinSize(offers, maxOffers) {
-  var min = 14;
-  var max = 44;
+function pinRadius(offers, maxOffers) {
+  var min = 5;
+  var max = 20;
   if (maxOffers <= 0) return min;
   var scale = Math.sqrt(Math.max(0, offers) / maxOffers);
-  return Math.round(min + (max - min) * scale);
+  return min + (max - min) * scale;
+}
+
+function popupHtml(school) {
+  var tested = school.testers.suppressed ? '≤5' : school.testers.value;
+  var offers = school.offers.suppressed ? '≤5' : school.offers.value;
+  return "\n    <div class=\"map-popup-inner\">\n      <div class=\"map-popup-head\">\n        <span class=\"map-popup-name\">".concat(school.name, "</span>\n        <span class=\"map-popup-rate\">").concat(Math.round(school.offerRate), "%</span>\n      </div>\n      <div class=\"map-popup-bar\"><div style=\"width:").concat(Math.min(100, school.offerRate), "%\"></div></div>\n      <span class=\"map-popup-meta\">").concat(tested, " tested &middot; ").concat(offers, " offers &middot; D").concat(school.district, "</span>\n      <a href=\"#/school/").concat(school.dbn, "\" class=\"map-popup-link\">View school &rarr;</a>\n    </div>\n  ");
 }
 
 var MapView = /*#__PURE__*/function (_React$Component) {
@@ -1486,43 +1530,134 @@ var MapView = /*#__PURE__*/function (_React$Component) {
     _this = _super.call(this, props);
     _this.state = {
       search: '',
-      activeDbn: null
+      leafletReady: !!window.L
     };
+    _this.mapNode = null;
+    _this.map = null;
+    _this.markersByDbn = {};
     return _this;
   }
 
   _createClass(MapView, [{
-    key: "render",
-    value: function render() {
+    key: "componentDidMount",
+    value: function componentDidMount() {
       var _this2 = this;
 
-      var _this$props = this.props,
-          schools = _this$props.schools,
-          feederDataSource = _this$props.feederDataSource;
-      var _this$state = this.state,
-          search = _this$state.search,
-          activeDbn = _this$state.activeDbn;
-      var list = schools.filter(function (s) {
-        return !search || s.name.toUpperCase().indexOf(search.toUpperCase()) >= 0;
-      }).slice().sort(function (a, b) {
-        return b.offers.value - a.offers.value;
-      }).slice(0, 60);
-      var maxOffers = Math.max.apply(Math, [1].concat(_toConsumableArray(list.map(function (s) {
+      if (!window.L) {
+        // The Leaflet CDN script tag is still loading (or failed) -- poll
+        // briefly rather than assume it's unavailable.
+        this.leafletPoll = setInterval(function () {
+          if (window.L) {
+            clearInterval(_this2.leafletPoll);
+
+            _this2.setState({
+              leafletReady: true
+            }, _this2.initMap);
+          }
+        }, 150);
+        setTimeout(function () {
+          return clearInterval(_this2.leafletPoll);
+        }, 8000);
+        return;
+      }
+
+      this.initMap();
+    }
+  }, {
+    key: "componentDidUpdate",
+    value: function componentDidUpdate(prevProps) {
+      if (this.map && prevProps.schools !== this.props.schools) {
+        this.renderMarkers();
+      }
+    }
+  }, {
+    key: "componentWillUnmount",
+    value: function componentWillUnmount() {
+      if (this.leafletPoll) clearInterval(this.leafletPoll);
+
+      if (this.map) {
+        this.map.remove();
+        this.map = null;
+      }
+    }
+  }, {
+    key: "initMap",
+    value: function initMap() {
+      if (!this.mapNode || this.map) return;
+      var L = window.L;
+      this.map = L.map(this.mapNode, {
+        scrollWheelZoom: true
+      }).setView(NYC_CENTER, 11);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(this.map);
+      this.renderMarkers();
+    }
+  }, {
+    key: "renderMarkers",
+    value: function renderMarkers() {
+      var _this3 = this;
+
+      var L = window.L;
+      if (!L || !this.map) return;
+      Object.values(this.markersByDbn).forEach(function (m) {
+        return _this3.map.removeLayer(m);
+      });
+      this.markersByDbn = {};
+      var geocoded = this.props.schools.filter(function (s) {
+        return s.geo;
+      });
+      var maxOffers = Math.max.apply(Math, [1].concat(_toConsumableArray(geocoded.map(function (s) {
         return s.offers.value;
       }))));
-      var active = list.find(function (s) {
-        return s.dbn === activeDbn;
-      }) || list[0];
+      geocoded.forEach(function (school) {
+        var marker = L.circleMarker([school.geo.lat, school.geo.lng], {
+          radius: pinRadius(school.offers.value, maxOffers),
+          color: '#fff',
+          weight: 2,
+          fillColor: '#c2410c',
+          fillOpacity: 0.85
+        }).addTo(_this3.map);
+        marker.bindPopup(popupHtml(school));
+        _this3.markersByDbn[school.dbn] = marker;
+      });
+    }
+  }, {
+    key: "focusSchool",
+    value: function focusSchool(school) {
+      if (!this.map || !school.geo) return;
+      this.map.setView([school.geo.lat, school.geo.lng], 14);
+      var marker = this.markersByDbn[school.dbn];
+      if (marker) marker.openPopup();
+    }
+  }, {
+    key: "render",
+    value: function render() {
+      var _this4 = this;
 
-      if (feederDataSource === 'seed' && schools.length === 0) {
+      var schools = this.props.schools;
+      var search = this.state.search;
+
+      if (!schools.length) {
         return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
           className: "data-source-banner",
           style: {
             margin: '16px 40px'
           }
-        }, "Live admissions data is unavailable right now, and there is no fallback data to show.");
+        }, "No admissions data has loaded yet.");
       }
 
+      var geocodedCount = schools.filter(function (s) {
+        return s.geo;
+      }).length;
+      var list = schools.filter(function (s) {
+        return s.geo;
+      }).filter(function (s) {
+        return !search || s.name.toUpperCase().indexOf(search.toUpperCase()) >= 0;
+      }).slice().sort(function (a, b) {
+        return b.offers.value - a.offers.value;
+      }).slice(0, 150);
       return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
         className: "map-page"
       }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("aside", {
@@ -1532,22 +1667,20 @@ var MapView = /*#__PURE__*/function (_React$Component) {
         placeholder: "Search this list\u2026",
         value: search,
         onChange: function onChange(e) {
-          return _this2.setState({
+          return _this4.setState({
             search: e.target.value
           });
         }
       }), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", {
         className: "map-sidebar-hint"
-      }, list.length, " schools shown \xB7 circle size = offers"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+      }, geocodedCount, " of ", schools.length, " schools located \xB7 circle size = offers"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
         className: "map-list"
       }, list.map(function (s) {
         return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
           key: s.dbn,
-          className: "map-list-item".concat(active && s.dbn === active.dbn ? ' is-active' : ''),
+          className: "map-list-item",
           onClick: function onClick() {
-            return _this2.setState({
-              activeDbn: s.dbn
-            });
+            return _this4.focusSchool(s);
           }
         }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
           className: "map-list-item-meta"
@@ -1555,68 +1688,24 @@ var MapView = /*#__PURE__*/function (_React$Component) {
           className: "map-list-item-name"
         }, s.name), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", {
           className: "map-list-item-sub"
-        }, "D", s.district, " \xB7 ", formatOffers(s), " offers")), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", {
+        }, "D", s.district, " \xB7 ", s.offers.suppressed ? '≤5' : s.offers.value, " offers")), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", {
           className: "map-list-item-rate"
         }, Math.round(s.offerRate), "%"));
       }))), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
         className: "map-canvas"
-      }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", {
-        className: "map-caption"
-      }, "Schematic district-based positions \u2014 not exact addresses"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
-        className: "map-zoom"
-      }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", null, "+"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", null, "\u2212")), list.map(function (s) {
-        return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
-          key: s.dbn,
-          className: "map-pin".concat(active && s.dbn === active.dbn ? ' is-active' : ''),
-          style: {
-            left: "".concat(s.mapPos.x * 100, "%"),
-            top: "".concat(s.mapPos.y * 100, "%"),
-            width: pinSize(s.offers.value, maxOffers),
-            height: pinSize(s.offers.value, maxOffers)
-          },
-          onClick: function onClick() {
-            return _this2.setState({
-              activeDbn: s.dbn
-            });
-          }
-        });
-      }), active && /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
-        className: "map-popup",
-        style: {
-          left: "".concat(active.mapPos.x * 100, "%"),
-          top: "".concat(active.mapPos.y * 100, "%")
+      }, !this.state.leafletReady && /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+        className: "map-loading"
+      }, "Loading map\u2026"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+        className: "map-leaflet-root",
+        ref: function ref(el) {
+          _this4.mapNode = el;
         }
-      }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
-        className: "map-popup-head"
-      }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", {
-        className: "map-popup-name"
-      }, active.name), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", {
-        className: "map-popup-rate"
-      }, Math.round(active.offerRate), "%")), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
-        className: "map-popup-bar"
-      }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
-        style: {
-          width: "".concat(Math.min(100, active.offerRate), "%")
-        }
-      })), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", {
-        className: "map-popup-meta"
-      }, formatTested(active), " tested \xB7 ", formatOffers(active), " offers \xB7 D", active.district), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_1__["Link"], {
-        to: "/school/".concat(active.dbn),
-        className: "map-popup-link"
-      }, "View school \u2192"))));
+      })));
     }
   }]);
 
   return MapView;
 }(react__WEBPACK_IMPORTED_MODULE_0___default.a.Component);
-
-function formatOffers(s) {
-  return s.offers.suppressed ? '≤5' : s.offers.value;
-}
-
-function formatTested(s) {
-  return s.testers.suppressed ? '≤5' : s.testers.value;
-}
 
 /* harmony default export */ __webpack_exports__["default"] = (MapView);
 
@@ -1664,8 +1753,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _saved__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./saved */ "./frontend/saved.jsx");
 /* harmony import */ var _map__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./map */ "./frontend/map.jsx");
 /* harmony import */ var _lib_schoolData__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./lib/schoolData */ "./frontend/lib/schoolData.js");
-/* harmony import */ var _theme_css__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./theme.css */ "./frontend/theme.css");
-/* harmony import */ var _theme_css__WEBPACK_IMPORTED_MODULE_10___default = /*#__PURE__*/__webpack_require__.n(_theme_css__WEBPACK_IMPORTED_MODULE_10__);
+/* harmony import */ var _lib_geocode__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./lib/geocode */ "./frontend/lib/geocode.js");
+/* harmony import */ var _theme_css__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./theme.css */ "./frontend/theme.css");
+/* harmony import */ var _theme_css__WEBPACK_IMPORTED_MODULE_11___default = /*#__PURE__*/__webpack_require__.n(_theme_css__WEBPACK_IMPORTED_MODULE_11__);
 function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
 
 function _extends() { _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; }; return _extends.apply(this, arguments); }
@@ -1712,6 +1802,7 @@ function _objectWithoutPropertiesLoose(source, excluded) { if (source == null) r
 
 
 
+
 var allSchoolQuality = __webpack_require__(/*! ./reports/schoolqrep2018.json */ "./frontend/reports/schoolqrep2018.json");
 
 var feederSeed = __webpack_require__(/*! ./reports/feederSeed.json */ "./frontend/reports/feederSeed.json"); // Socrata defaults to a 1000-row cap with an unspecified order when
@@ -1722,7 +1813,10 @@ var feederSeed = __webpack_require__(/*! ./reports/feederSeed.json */ "./fronten
 // full dataset's size (~700 schools x ~8 years).
 
 
-var FEEDER_API_URL = "https://data.cityofnewyork.us/resource/k8ah-28f4.json?$order=year%20DESC&$limit=50000";
+var FEEDER_API_URL = "https://data.cityofnewyork.us/resource/k8ah-28f4.json?$order=year%20DESC&$limit=50000"; // "School Point Locations" -- the evergreen (non-year-prefixed) NYC DOE
+// school geocoding dataset, same pattern as the admissions data above.
+
+var GEO_API_URL = "https://data.cityofnewyork.us/resource/jfju-ynrr.json?$limit=50000";
 var SOCRATA_APP_TOKEN = "";
 
 function normalizeFeederRecord(record) {
@@ -1786,10 +1880,13 @@ var App = /*#__PURE__*/function (_React$Component) {
     _this = _super.call(this);
     _this.state = {
       schools: [],
+      rawFeederData: [],
+      geoByDbn: {},
       feederDataSource: null,
       compareDbns: loadSet('compareDbns'),
       savedDbns: loadSet('savedDbns')
     };
+    _this.remergeSchools = _this.remergeSchools.bind(_assertThisInitialized(_this));
     _this.toggleCompare = _this.toggleCompare.bind(_assertThisInitialized(_this));
     _this.toggleSaved = _this.toggleSaved.bind(_assertThisInitialized(_this));
     _this.removeFromCompare = _this.removeFromCompare.bind(_assertThisInitialized(_this));
@@ -1801,24 +1898,67 @@ var App = /*#__PURE__*/function (_React$Component) {
     key: "componentDidMount",
     value: function componentDidMount() {
       this.loadFeederData();
+      this.loadGeoData();
     }
   }, {
     key: "setSchools",
     value: function setSchools(feederData, feederDataSource) {
-      var schools = Object(_lib_schoolData__WEBPACK_IMPORTED_MODULE_9__["mergeSchools"])(dedupeByLatestYear(feederData), allSchoolQuality);
-      var compareDbns = this.state.compareDbns;
+      this.setState({
+        rawFeederData: dedupeByLatestYear(feederData),
+        feederDataSource: feederDataSource
+      }, this.remergeSchools);
+    }
+  }, {
+    key: "remergeSchools",
+    value: function remergeSchools() {
+      var _this$state = this.state,
+          rawFeederData = _this$state.rawFeederData,
+          geoByDbn = _this$state.geoByDbn,
+          compareDbns = _this$state.compareDbns;
+      var schools = Object(_lib_schoolData__WEBPACK_IMPORTED_MODULE_9__["mergeSchools"])(rawFeederData, allSchoolQuality, geoByDbn);
       schools.forEach(function (s) {
         s.isChecked = compareDbns.indexOf(s.dbn) >= 0;
       });
       this.setState({
-        schools: schools,
-        feederDataSource: feederDataSource
+        schools: schools
+      });
+    }
+  }, {
+    key: "loadGeoData",
+    value: function loadGeoData() {
+      var _this2 = this;
+
+      fetch(GEO_API_URL).then(function (response) {
+        if (!response.ok) throw new Error("Geo data request failed with status ".concat(response.status));
+        return response.json();
+      }).then(function (response) {
+        var geoByDbn = Object(_lib_geocode__WEBPACK_IMPORTED_MODULE_10__["buildGeoLookup"])(response);
+        localStorage.setItem('geoData', JSON.stringify(geoByDbn));
+
+        _this2.setState({
+          geoByDbn: geoByDbn
+        }, _this2.remergeSchools);
+      })["catch"](function (error) {
+        console.error('Live geo data fetch failed, trying cached geo data', error);
+        var cached = null;
+
+        try {
+          cached = JSON.parse(localStorage.getItem('geoData'));
+        } catch (e) {
+          cached = null;
+        } // No cached geo data is a soft failure: schools just keep their
+        // schematic (non-geocoded) map positions.
+
+
+        if (cached) _this2.setState({
+          geoByDbn: cached
+        }, _this2.remergeSchools);
       });
     }
   }, {
     key: "loadFeederData",
     value: function loadFeederData() {
-      var _this2 = this;
+      var _this3 = this;
 
       var headers = SOCRATA_APP_TOKEN ? {
         'X-App-Token': SOCRATA_APP_TOKEN
@@ -1832,11 +1972,11 @@ var App = /*#__PURE__*/function (_React$Component) {
         var feederData = dedupeByLatestYear(response.map(normalizeFeederRecord));
         localStorage.setItem('storeData', JSON.stringify(feederData));
 
-        _this2.setSchools(feederData, 'live');
+        _this3.setSchools(feederData, 'live');
       })["catch"](function (error) {
         console.error('Live feeder data fetch failed, falling back to cached data', error);
 
-        _this2.loadFallbackFeederData();
+        _this3.loadFallbackFeederData();
       });
     }
   }, {
@@ -1912,11 +2052,11 @@ var App = /*#__PURE__*/function (_React$Component) {
   }, {
     key: "render",
     value: function render() {
-      var _this$state = this.state,
-          schools = _this$state.schools,
-          feederDataSource = _this$state.feederDataSource,
-          compareDbns = _this$state.compareDbns,
-          savedDbns = _this$state.savedDbns;
+      var _this$state2 = this.state,
+          schools = _this$state2.schools,
+          feederDataSource = _this$state2.feederDataSource,
+          compareDbns = _this$state2.compareDbns,
+          savedDbns = _this$state2.savedDbns;
       var shared = {
         schools: schools,
         feederDataSource: feederDataSource,
@@ -2777,7 +2917,7 @@ module.exports = exports;
 var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(/*! ../node_modules/css-loader/dist/runtime/api.js */ "./node_modules/css-loader/dist/runtime/api.js");
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
-exports.push([module.i, ".map-page {\n  display: grid;\n  grid-template-columns: 340px 1fr;\n  min-height: 640px;\n}\n\n.map-sidebar {\n  border-right: 1px solid var(--ink-10);\n  padding: 24px;\n  display: flex;\n  flex-direction: column;\n  gap: 10px;\n  overflow: hidden;\n}\n\n.map-search {\n  border: 1px solid var(--ink-15);\n  background: var(--card-bg);\n  border-radius: 10px;\n  padding: 12px 14px;\n  font-size: 14px;\n  font-family: var(--font-sans);\n}\n\n.map-sidebar-hint {\n  font-size: 13px;\n  color: var(--ink-55);\n  padding: 6px 2px;\n}\n\n.map-list {\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  overflow-y: auto;\n}\n\n.map-list-item {\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  gap: 12px;\n  padding: 12px 14px;\n  border-radius: 10px;\n  background: var(--card-bg);\n  border: 1px solid var(--ink-07);\n  cursor: pointer;\n}\n\n.map-list-item.is-active {\n  background: var(--accent-tint-soft);\n  border-color: var(--ink-07);\n}\n\n.map-list-item-meta {\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n  min-width: 0;\n}\n\n.map-list-item-name {\n  font-size: 14px;\n  font-weight: 600;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.map-list-item-sub {\n  font: 11px var(--font-mono);\n  color: var(--ink-55);\n}\n\n.map-list-item-rate {\n  font: 400 24px var(--font-serif);\n  color: var(--accent);\n}\n\n.map-canvas {\n  position: relative;\n  background: repeating-linear-gradient(135deg, rgb(230, 226, 217) 0px, rgb(230, 226, 217) 12px, rgb(237, 233, 225) 12px, rgb(237, 233, 225) 24px);\n  overflow: hidden;\n}\n\n.map-caption {\n  position: absolute;\n  left: 20px;\n  bottom: 20px;\n  font: 12px var(--font-mono);\n  color: var(--ink-45);\n}\n\n.map-zoom {\n  position: absolute;\n  right: 20px;\n  top: 20px;\n  display: flex;\n  flex-direction: column;\n  background: var(--card-bg);\n  border-radius: 8px;\n  border: 1px solid var(--ink-15);\n  font-size: 18px;\n}\n\n.map-zoom span {\n  padding: 6px 12px;\n}\n\n.map-zoom span:last-child {\n  border-top: 1px solid var(--ink-10);\n}\n\n.map-pin {\n  position: absolute;\n  transform: translate(-50%, -50%);\n  border-radius: 50%;\n  background: var(--blue);\n  border: 2px solid var(--card-bg);\n  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);\n  cursor: pointer;\n}\n\n.map-pin.is-active {\n  background: var(--accent-label);\n}\n\n.map-popup {\n  position: absolute;\n  transform: translate(-50%, calc(-100% - 24px));\n  width: 260px;\n  background: var(--card-bg);\n  border-radius: 14px;\n  padding: 16px;\n  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);\n  display: flex;\n  flex-direction: column;\n  gap: 10px;\n}\n\n.map-popup-head {\n  display: flex;\n  justify-content: space-between;\n  align-items: baseline;\n}\n\n.map-popup-name {\n  font-size: 15px;\n  font-weight: 600;\n}\n\n.map-popup-rate {\n  font: 400 24px var(--font-serif);\n  color: var(--accent);\n}\n\n.map-popup-bar {\n  height: 8px;\n  border-radius: 4px;\n  background: var(--blue-light);\n  position: relative;\n  overflow: hidden;\n}\n\n.map-popup-bar div {\n  position: absolute;\n  top: 0;\n  left: 0;\n  height: 8px;\n  border-radius: 4px;\n  background: var(--accent-label);\n}\n\n.map-popup-meta {\n  font: 12px var(--font-mono);\n  color: var(--ink-60);\n}\n\n.map-popup-link {\n  font-size: 13px;\n  font-weight: 600;\n}\n\n@media (max-width: 900px) {\n  .map-page { grid-template-columns: 1fr; }\n  .map-sidebar { border-right: none; border-bottom: 1px solid var(--ink-10); max-height: 320px; }\n  .map-canvas { min-height: 380px; }\n}\n", ""]);
+exports.push([module.i, ".map-page {\n  display: grid;\n  grid-template-columns: 340px 1fr;\n  min-height: 640px;\n}\n\n.map-sidebar {\n  border-right: 1px solid var(--ink-10);\n  padding: 24px;\n  display: flex;\n  flex-direction: column;\n  gap: 10px;\n  overflow: hidden;\n}\n\n.map-search {\n  border: 1px solid var(--ink-15);\n  background: var(--card-bg);\n  border-radius: 10px;\n  padding: 12px 14px;\n  font-size: 14px;\n  font-family: var(--font-sans);\n}\n\n.map-sidebar-hint {\n  font-size: 13px;\n  color: var(--ink-55);\n  padding: 6px 2px;\n}\n\n.map-list {\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  overflow-y: auto;\n}\n\n.map-list-item {\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  gap: 12px;\n  padding: 12px 14px;\n  border-radius: 10px;\n  background: var(--card-bg);\n  border: 1px solid var(--ink-07);\n  cursor: pointer;\n}\n\n.map-list-item.is-active {\n  background: var(--accent-tint-soft);\n  border-color: var(--ink-07);\n}\n\n.map-list-item-meta {\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n  min-width: 0;\n}\n\n.map-list-item-name {\n  font-size: 14px;\n  font-weight: 600;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.map-list-item-sub {\n  font: 11px var(--font-mono);\n  color: var(--ink-55);\n}\n\n.map-list-item-rate {\n  font: 400 24px var(--font-serif);\n  color: var(--accent);\n}\n\n.map-canvas {\n  position: relative;\n  overflow: hidden;\n}\n\n.map-leaflet-root {\n  position: absolute;\n  inset: 0;\n  background: var(--panel-bg);\n}\n\n.map-loading {\n  position: absolute;\n  inset: 0;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  color: var(--ink-55);\n  font-size: 14px;\n  z-index: 1;\n  pointer-events: none;\n}\n\n.map-popup-inner {\n  width: 220px;\n  display: flex;\n  flex-direction: column;\n  gap: 10px;\n}\n\n.map-popup-head {\n  display: flex;\n  justify-content: space-between;\n  align-items: baseline;\n}\n\n.map-popup-name {\n  font-size: 15px;\n  font-weight: 600;\n}\n\n.map-popup-rate {\n  font: 400 24px var(--font-serif);\n  color: var(--accent);\n}\n\n.map-popup-bar {\n  height: 8px;\n  border-radius: 4px;\n  background: var(--blue-light);\n  position: relative;\n  overflow: hidden;\n}\n\n.map-popup-bar div {\n  position: absolute;\n  top: 0;\n  left: 0;\n  height: 8px;\n  border-radius: 4px;\n  background: var(--accent-label);\n}\n\n.map-popup-meta {\n  font: 12px var(--font-mono);\n  color: var(--ink-60);\n}\n\n.map-popup-link {\n  font-size: 13px;\n  font-weight: 600;\n}\n\n@media (max-width: 900px) {\n  .map-page { grid-template-columns: 1fr; }\n  .map-sidebar { border-right: none; border-bottom: 1px solid var(--ink-10); max-height: 320px; }\n  .map-canvas { min-height: 380px; }\n}\n", ""]);
 // Exports
 module.exports = exports;
 

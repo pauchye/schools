@@ -8,6 +8,7 @@ import Compare from './compare'
 import Saved from './saved'
 import MapView from './map'
 import { mergeSchools } from './lib/schoolData'
+import { buildGeoLookup } from './lib/geocode'
 import './theme.css'
 
 const allSchoolQuality = require('./reports/schoolqrep2018.json');
@@ -20,6 +21,9 @@ const feederSeed = require('./reports/feederSeed.json')
 // something still gets cut off, and set $limit comfortably above the
 // full dataset's size (~700 schools x ~8 years).
 const FEEDER_API_URL = "https://data.cityofnewyork.us/resource/k8ah-28f4.json?$order=year%20DESC&$limit=50000"
+// "School Point Locations" -- the evergreen (non-year-prefixed) NYC DOE
+// school geocoding dataset, same pattern as the admissions data above.
+const GEO_API_URL = "https://data.cityofnewyork.us/resource/jfju-ynrr.json?$limit=50000"
 const SOCRATA_APP_TOKEN = ""
 
 function normalizeFeederRecord(record) {
@@ -69,10 +73,13 @@ class App extends React.Component {
     super()
     this.state = {
       schools: [],
+      rawFeederData: [],
+      geoByDbn: {},
       feederDataSource: null,
       compareDbns: loadSet('compareDbns'),
       savedDbns: loadSet('savedDbns'),
     }
+    this.remergeSchools = this.remergeSchools.bind(this)
     this.toggleCompare = this.toggleCompare.bind(this)
     this.toggleSaved = this.toggleSaved.bind(this)
     this.removeFromCompare = this.removeFromCompare.bind(this)
@@ -81,13 +88,40 @@ class App extends React.Component {
 
   componentDidMount() {
     this.loadFeederData()
+    this.loadGeoData()
   }
 
   setSchools(feederData, feederDataSource) {
-    const schools = mergeSchools(dedupeByLatestYear(feederData), allSchoolQuality)
-    const { compareDbns } = this.state
+    this.setState({ rawFeederData: dedupeByLatestYear(feederData), feederDataSource }, this.remergeSchools)
+  }
+
+  remergeSchools() {
+    const { rawFeederData, geoByDbn, compareDbns } = this.state
+    const schools = mergeSchools(rawFeederData, allSchoolQuality, geoByDbn)
     schools.forEach((s) => { s.isChecked = compareDbns.indexOf(s.dbn) >= 0 })
-    this.setState({ schools, feederDataSource })
+    this.setState({ schools })
+  }
+
+  loadGeoData() {
+    fetch(GEO_API_URL).then((response) => {
+      if (!response.ok) throw new Error(`Geo data request failed with status ${response.status}`)
+      return response.json()
+    }).then((response) => {
+      const geoByDbn = buildGeoLookup(response)
+      localStorage.setItem('geoData', JSON.stringify(geoByDbn))
+      this.setState({ geoByDbn }, this.remergeSchools)
+    }).catch((error) => {
+      console.error('Live geo data fetch failed, trying cached geo data', error)
+      let cached = null
+      try {
+        cached = JSON.parse(localStorage.getItem('geoData'))
+      } catch (e) {
+        cached = null
+      }
+      // No cached geo data is a soft failure: schools just keep their
+      // schematic (non-geocoded) map positions.
+      if (cached) this.setState({ geoByDbn: cached }, this.remergeSchools)
+    })
   }
 
   loadFeederData() {
