@@ -46,7 +46,7 @@
   width: 10px;
   height: 10px;
   border-radius: 2px;
-  background: var(--accent-tint);
+  background: var(--green-tint);
   display: inline-block;
 }
 
@@ -139,7 +139,7 @@
 
 .compare-cell.is-best {
   font-weight: 600;
-  background: var(--accent-tint);
+  background: var(--green-tint);
 }
 
 @media (max-width: 900px) {
