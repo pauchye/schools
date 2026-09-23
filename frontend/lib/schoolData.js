@@ -37,7 +37,9 @@ function pct(value) {
 // Merge one feeder-data (admissions) row with its matching school-quality
 // report row (by DBN) into a single normalized school the rest of the app
 // consumes. `quality` may be undefined for a DBN with no quality report.
-export function normalizeSchool(feederRecord, quality) {
+// `geo`, when given a match, provides a real lat/lng; otherwise the school
+// falls back to the schematic (non-geocoded) map position.
+export function normalizeSchool(feederRecord, quality, geo) {
   const dbn = feederRecord.feeder_school_dbn
   const district = districtOf(dbn)
   const borough = boroughOf(district)
@@ -82,12 +84,13 @@ export function normalizeSchool(feederRecord, quality) {
     studentsWithDisabilities: quality ? pct(quality['Percent Students with Disabilities']) : null,
     hraEligible: quality ? pct(quality['Percent HRA Eligible']) : null,
     mapPos: approxMapPosition(dbn),
+    geo: geo || null,
     isChecked: false,
   }
 }
 
-export function mergeSchools(feederData, qualityReports) {
+export function mergeSchools(feederData, qualityReports, geoByDbn) {
   const byDbn = {}
   qualityReports.forEach((q) => { byDbn[q.DBN] = q })
-  return feederData.map((rec) => normalizeSchool(rec, byDbn[rec.feeder_school_dbn]))
+  return feederData.map((rec) => normalizeSchool(rec, byDbn[rec.feeder_school_dbn], geoByDbn && geoByDbn[rec.feeder_school_dbn]))
 }
