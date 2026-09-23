@@ -7,7 +7,10 @@
   position: sticky;
   top: 0;
   background: var(--panel-bg);
-  z-index: 10;
+  /* Leaflet's internal panes (tile/overlay/marker/popup) use z-index up to
+     ~700 and controls up to 1000, so the sticky header needs to clear all
+     of them or the map renders on top of it when scrolled. */
+  z-index: 1200;
 }
 
 .nav-left {
