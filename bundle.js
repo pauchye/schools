@@ -1714,9 +1714,15 @@ function _objectWithoutPropertiesLoose(source, excluded) { if (source == null) r
 
 var allSchoolQuality = __webpack_require__(/*! ./reports/schoolqrep2018.json */ "./frontend/reports/schoolqrep2018.json");
 
-var feederSeed = __webpack_require__(/*! ./reports/feederSeed.json */ "./frontend/reports/feederSeed.json");
+var feederSeed = __webpack_require__(/*! ./reports/feederSeed.json */ "./frontend/reports/feederSeed.json"); // Socrata defaults to a 1000-row cap with an unspecified order when
+// $limit/$order aren't given. This dataset now has multiple rows per
+// school (one per year), so an unpaginated request can silently truncate
+// whole years -- order newest-first so the current year survives even if
+// something still gets cut off, and set $limit comfortably above the
+// full dataset's size (~700 schools x ~8 years).
 
-var FEEDER_API_URL = "https://data.cityofnewyork.us/resource/k8ah-28f4.json";
+
+var FEEDER_API_URL = "https://data.cityofnewyork.us/resource/k8ah-28f4.json?$order=year%20DESC&$limit=50000";
 var SOCRATA_APP_TOKEN = "";
 
 function normalizeFeederRecord(record) {
