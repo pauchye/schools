@@ -812,7 +812,7 @@ var Schools = /*#__PURE__*/function (_React$Component) {
       var schools = this.state.feederData;
       var selectedSchools = [];
       schools.forEach(function (school) {
-        if (school.feeder_school_name === event.target.name) {
+        if (school.feeder_school_dbn === event.target.name) {
           school.isChecked = event.target.checked;
         }
 
@@ -993,6 +993,7 @@ var Schools = /*#__PURE__*/function (_React$Component) {
       }) : /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("i", {
         className: "fas fa-angle-up fa-lg space"
       });
+      var showFallbackBanner = this.state.feederDataSource === 'cached' || this.state.feederDataSource === 'seed';
       return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
         className: "schools-main"
       }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(_modal__WEBPACK_IMPORTED_MODULE_4__["default"], {
@@ -1005,7 +1006,11 @@ var Schools = /*#__PURE__*/function (_React$Component) {
         className: "data-source-banner"
       }, "Live admissions data is unavailable right now \u2014 showing the last data loaded in this browser."), this.state.feederDataSource === 'seed' && /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
         className: "data-source-banner"
-      }, "Live admissions data is unavailable right now \u2014 showing a bundled snapshot, which may be out of date."), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("ul", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+      }, "Live admissions data is unavailable right now \u2014 showing a bundled snapshot, which may be out of date."), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("ul", {
+        style: showFallbackBanner ? {
+          top: 42
+        } : undefined
+      }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
         className: "fixed"
       }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("li", {
         className: "table"
@@ -1065,7 +1070,7 @@ var Schools = /*#__PURE__*/function (_React$Component) {
         if (!otherData[0]) otherData = [dummyData];
         if (!object.isChecked) object.isChecked = false;
         return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(_eachSchool__WEBPACK_IMPORTED_MODULE_1__["default"], {
-          name: object.feeder_school_name,
+          name: object.feeder_school_dbn,
           key: idx,
           data: object,
           otherData: otherData[0],
