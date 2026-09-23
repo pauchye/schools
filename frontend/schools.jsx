@@ -104,14 +104,14 @@ class Schools extends React.Component {
         let schools = this.state.feederData
         let selectedSchools = []
         schools.forEach(school => {
-          if (school.feeder_school_name === event.target.name) {
+          if (school.feeder_school_dbn === event.target.name) {
             school.isChecked =  event.target.checked;
           }
           if(school.isChecked){
-            selectedSchools.push(school)  
+            selectedSchools.push(school)
           }
         })
-        this.setState({feederData: schools, selected: selectedSchools}) 
+        this.setState({feederData: schools, selected: selectedSchools})
     }
 
     handleOpenModal(event){
@@ -242,6 +242,7 @@ class Schools extends React.Component {
       }
         // console.log("dist", districts)
         let arrow = this.state.sort === "acs" ? <i className="fas fa-angle-down fa-lg space"></i> : <i className="fas fa-angle-up fa-lg space"></i>
+        let showFallbackBanner = this.state.feederDataSource === 'cached' || this.state.feederDataSource === 'seed'
         return(
             <div className='schools-main'>
                 
@@ -262,7 +263,7 @@ class Schools extends React.Component {
                 <button onClick={this.handleSubmit}>Compare</button>  
             </div>        */}
                         
-            <ul>
+            <ul style={showFallbackBanner ? { top: 42 } : undefined}>
                 <div className='fixed'>
                  <li className='table'>
                
@@ -313,8 +314,8 @@ class Schools extends React.Component {
                     })
                     if(!otherData[0]) otherData = [dummyData]
                     if(!object.isChecked) object.isChecked = false; 
-                    return <EachSchool 
-                        name={object.feeder_school_name}
+                    return <EachSchool
+                        name={object.feeder_school_dbn}
                         key={idx} 
                         data={object} 
                         otherData={otherData[0]} 
