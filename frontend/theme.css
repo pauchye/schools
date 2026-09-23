@@ -1,0 +1,127 @@
+:root {
+  --ink: rgb(28, 27, 25);
+  --ink-60: rgba(28, 27, 25, 0.6);
+  --ink-55: rgba(28, 27, 25, 0.55);
+  --ink-45: rgba(28, 27, 25, 0.45);
+  --ink-25: rgba(28, 27, 25, 0.25);
+  --ink-20: rgba(28, 27, 25, 0.2);
+  --ink-15: rgba(28, 27, 25, 0.15);
+  --ink-10: rgba(28, 27, 25, 0.1);
+  --ink-07: rgba(28, 27, 25, 0.07);
+  --ink-05: rgba(28, 27, 25, 0.05);
+
+  --page-bg: rgb(233, 230, 223);
+  --panel-bg: rgb(247, 245, 240);
+  --card-bg: rgb(255, 255, 255);
+
+  --accent: oklch(0.5 0.15 40);
+  --accent-label: oklch(0.55 0.15 40);
+  --accent-tint: oklch(0.93 0.05 40);
+  --accent-tint-soft: oklch(0.95 0.03 40);
+  --blue: oklch(0.55 0.15 250);
+  --blue-light: oklch(0.82 0.07 250);
+  --tan: oklch(0.75 0.1 80);
+  --green: oklch(0.55 0.1 160);
+
+  --font-serif: "Instrument Serif", Georgia, serif;
+  --font-sans: "Instrument Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --radius-pill: 99px;
+  --radius-card: 12px;
+  --radius-panel: 16px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--page-bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+}
+
+a { text-decoration: none; color: inherit; }
+
+.kicker {
+  font: 500 12px var(--font-mono);
+  letter-spacing: 0.08em;
+  color: var(--accent-label);
+  text-transform: uppercase;
+}
+
+.mono-label {
+  font: 500 11px var(--font-mono);
+  color: var(--ink-55);
+  letter-spacing: 0.04em;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 11px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  border: 1px solid var(--ink-20);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  user-select: none;
+}
+
+.chip.is-selected {
+  background: var(--ink);
+  color: var(--card-bg);
+  border-color: var(--ink);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--ink-20);
+  background: var(--card-bg);
+  color: var(--ink);
+  font-size: 14px;
+  padding: 12px 16px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn.btn-dark {
+  background: var(--ink);
+  color: var(--card-bg);
+  border-color: var(--ink);
+  font-weight: 600;
+}
+
+.btn.btn-accent {
+  background: var(--accent-label);
+  color: var(--card-bg);
+  border-color: var(--accent-label);
+  font-weight: 600;
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--ink-10);
+  border-radius: var(--radius-panel);
+  padding: 28px;
+}
+
+.app-shell {
+  max-width: 1280px;
+  margin: 0 auto;
+  background: var(--panel-bg);
+  min-height: 100vh;
+}
+
+@media (max-width: 900px) {
+  .app-shell { max-width: 100%; }
+}

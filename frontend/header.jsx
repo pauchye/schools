@@ -1,42 +1,25 @@
 import React from 'react'
+import { NavLink } from 'react-router-dom'
 import './header.css'
 
-function handleClick(){
-    localStorage.clear()
-    location.hash = '/'
-}
-
-function Header() {
-
-    
-
-    return(
-        <div className="header-main">
-            <div className="header-left"> 
-                <div className="header-logo" onClick={handleClick}>
-                    {/* <div >Smart hat</div>   */}
-                    <i className="fas fa-graduation-cap fa-4x" style={{fontsize: "98px", color:"white"}}></i>
-                    
-                </div>
-                <div className="header-logo-text">Smart hat</div>  
-                {/* <div >Feeder schools</div> */}
-                
-            </div>
-            <div className="header-mid-text">
-                <div className="bold">Where New York City’s Elite High Schools Get Their Students?</div>
-                <div>See SHSAT Admissions Test Offers By Sending Middle School</div>
-            </div>
-            <div className="header-right"> 
-                <div>
-                   <a href="https://data.cityofnewyork.us/Education/Specialized-High-Schools-Admissions-Tests-Results/k8ah-28f4">DATA LINK 1</a>
-                </div>
-                <div>
-                   <a href="https://data.cityofnewyork.us/Education/2017-2018-School-Quality-Reports-Elem-Middle-K-8/g6v2-wcvk">DATA LINK 2</a>  
-                </div>                    
-            </div>  
+function Header({ compareCount, savedCount }) {
+  return (
+    <div className="nav-bar">
+      <div className="nav-left">
+        <div className="nav-logo">
+          <span className="nav-logo-mark" />
+          <span className="nav-logo-text">Smart hat</span>
         </div>
-        
-    )
-};
+        <nav className="nav-links">
+          <NavLink exact to="/" activeClassName="is-active">Explore</NavLink>
+          <NavLink to="/map" activeClassName="is-active">Map</NavLink>
+          <NavLink to="/compare" activeClassName="is-active">Compare{compareCount > 0 ? ` · ${compareCount}` : ''}</NavLink>
+          <NavLink to="/saved" activeClassName="is-active">Saved{savedCount > 0 ? ` · ${savedCount}` : ''}</NavLink>
+        </nav>
+      </div>
+      <span className="nav-source">NYC OPEN DATA &middot; SHSAT ADMISSIONS</span>
+    </div>
+  )
+}
 
 export default Header;

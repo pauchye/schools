@@ -1,0 +1,125 @@
+.school-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 240px 80px 90px 56px;
+  gap: 16px;
+  align-items: center;
+  padding: 16px;
+  border-radius: var(--radius-card);
+  background: var(--card-bg);
+  border: 1px solid var(--ink-07);
+}
+
+.school-row.is-selected {
+  border-color: var(--ink-45);
+}
+
+.school-row-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: 1.5px solid var(--ink-25);
+  background: var(--card-bg);
+  color: var(--card-bg);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.school-row-check.is-checked {
+  border-color: var(--ink);
+  background: var(--ink);
+}
+
+.school-row-name {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.school-row-title {
+  font-size: 16px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.school-row-meta {
+  font: 12px var(--font-mono);
+  color: var(--ink-55);
+}
+
+.school-row-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.school-row-bar-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--ink-05);
+  position: relative;
+}
+
+.school-row-bar-tested {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--blue-light);
+  position: relative;
+  overflow: hidden;
+}
+
+.school-row-bar-offers {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--accent-label);
+}
+
+.school-row-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  font: 11px var(--font-mono);
+  color: var(--ink-55);
+}
+
+.school-row-rate {
+  text-align: right;
+  font: 400 28px var(--font-serif);
+  color: var(--accent);
+}
+
+.school-row-scores {
+  text-align: right;
+  font: 13px var(--font-mono);
+}
+
+.school-row-save {
+  text-align: center;
+  font-size: 12px;
+  padding: 6px 0;
+  border: 1px solid var(--ink-20);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .school-row {
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "check name rate"
+      "check bar bar";
+    row-gap: 8px;
+  }
+  .school-row-check { grid-area: check; }
+  .school-row-name { grid-area: name; }
+  .school-row-rate { grid-area: rate; font-size: 22px; }
+  .school-row-bar { grid-area: bar; }
+  .school-row-scores, .school-row-save { display: none; }
+}

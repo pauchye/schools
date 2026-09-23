@@ -1,0 +1,23 @@
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 40px;
+  border-top: 1px solid var(--ink-10);
+}
+
+.app-footer-quote {
+  margin: 0;
+  font: italic 400 17px / 1.35 var(--font-serif);
+  color: var(--ink-60);
+}
+
+.app-footer-links {
+  display: flex;
+  gap: 16px;
+  color: var(--ink-60);
+}
+
+@media (max-width: 700px) {
+  .app-footer { padding: 18px 20px; flex-direction: column; gap: 10px; align-items: flex-start; }
+}
