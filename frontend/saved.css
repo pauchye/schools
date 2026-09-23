@@ -1,0 +1,34 @@
+.saved-page {
+  padding: 36px 40px 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.saved-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.saved-header h2 {
+  margin: 0;
+  font: 400 40px var(--font-serif);
+}
+
+.saved-export {
+  font-size: 13px;
+  color: var(--ink-55);
+  cursor: pointer;
+}
+
+.saved-empty {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--ink-60);
+}
+
+@media (max-width: 900px) {
+  .saved-page { padding: 20px 16px 140px; }
+  .saved-header h2 { font-size: 28px; }
+}

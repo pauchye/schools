@@ -1,0 +1,263 @@
+.detail-page {
+  padding: 36px 40px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.detail-loading {
+  padding: 80px 40px;
+  text-align: center;
+  color: var(--ink-55);
+}
+
+.detail-breadcrumb {
+  font-size: 13px;
+  color: var(--ink-55);
+}
+
+.detail-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+
+.detail-heading h2 {
+  margin: 0 0 8px;
+  font: 400 52px / 1 var(--font-serif);
+}
+
+.detail-subline {
+  font-size: 15px;
+  color: var(--ink-60);
+}
+
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.detail-actions .btn-dark.is-active {
+  background: var(--ink);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 24px;
+}
+
+.detail-col {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.detail-admissions { gap: 24px; }
+
+.detail-stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.detail-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-stat-divider {
+  padding-left: 16px;
+  border-left: 1px solid var(--ink-10);
+}
+
+.detail-stat-value {
+  font: 400 40px var(--font-serif);
+}
+
+.detail-stat-label {
+  font-size: 13px;
+  color: var(--ink-60);
+}
+
+.detail-admissions-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-admissions-track {
+  height: 14px;
+  border-radius: 7px;
+  background: var(--ink-07);
+  position: relative;
+}
+
+.detail-admissions-tested {
+  height: 14px;
+  border-radius: 7px;
+  background: var(--blue-light);
+  position: relative;
+  overflow: hidden;
+}
+
+.detail-admissions-offers {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 14px;
+  border-radius: 7px;
+  background: var(--accent-label);
+}
+
+.detail-admissions-note {
+  font-size: 13px;
+  color: var(--ink-60);
+}
+
+.detail-quality { gap: 18px; }
+
+.detail-quality-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.detail-quality-scale {
+  font-size: 12px;
+  color: var(--ink-45);
+}
+
+.detail-quality-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px 110px;
+  gap: 16px;
+  align-items: center;
+  padding-top: 14px;
+  border-top: 1px solid var(--ink-07);
+  font-size: 15px;
+}
+
+.detail-quality-segments {
+  display: flex;
+  gap: 4px;
+}
+
+.detail-quality-segment {
+  flex: 1;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--ink-10);
+}
+
+.detail-quality-segment.is-filled {
+  background: var(--ink);
+}
+
+.detail-quality-label {
+  font-size: 14px;
+  text-align: right;
+  color: var(--ink-60);
+}
+
+.detail-proficiency { gap: 18px; }
+
+.detail-proficiency-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-proficiency-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.detail-proficiency-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--ink-07);
+}
+
+.detail-proficiency-fill {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--ink);
+}
+
+.detail-demographics { gap: 18px; }
+
+.detail-demo-bar {
+  display: flex;
+  height: 22px;
+  border-radius: 6px;
+  overflow: hidden;
+  gap: 2px;
+}
+
+.detail-demo-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+}
+
+.detail-demo-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.detail-demo-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.detail-demo-extra {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ink-07);
+}
+
+.detail-demo-extra div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detail-demo-extra-value {
+  font: 400 24px var(--font-serif);
+}
+
+.detail-demo-extra span:last-child {
+  font-size: 12px;
+  color: var(--ink-60);
+}
+
+.detail-staff { gap: 14px; }
+
+.detail-staff-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+@media (max-width: 900px) {
+  .detail-page { padding: 20px 16px 60px; }
+  .detail-heading h2 { font-size: 36px; }
+  .detail-grid { grid-template-columns: 1fr; }
+  .detail-stat-row { grid-template-columns: repeat(2, 1fr); gap: 20px 16px; }
+  .detail-stat-divider { border-left: none; padding-left: 0; }
+  .detail-quality-row { grid-template-columns: minmax(0, 1fr) 90px; }
+  .detail-quality-label { display: none; }
+}
