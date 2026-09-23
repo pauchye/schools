@@ -1813,10 +1813,15 @@ var feederSeed = __webpack_require__(/*! ./reports/feederSeed.json */ "./fronten
 // full dataset's size (~700 schools x ~8 years).
 
 
-var FEEDER_API_URL = "https://data.cityofnewyork.us/resource/k8ah-28f4.json?$order=year%20DESC&$limit=50000"; // "School Point Locations" -- the evergreen (non-year-prefixed) NYC DOE
-// school geocoding dataset, same pattern as the admissions data above.
+var FEEDER_API_URL = "https://data.cityofnewyork.us/resource/k8ah-28f4.json?$order=year%20DESC&$limit=50000"; // "School Point Locations" (jfju-ynrr) turned out to be private -- same
+// 403 "must be logged in" Socrata gives for a restricted dataset, confirmed
+// via a user's network inspector. "NYC DOE Public School Location
+// Information" covers all DOE schools with DBN/lat/long and (unlike
+// jfju-ynrr) is mirrored on data.ny.gov and catalog.data.gov, a stronger
+// public/active signal -- but this sandbox can't fetch either to fully
+// confirm, so this is the best-evidence fix, not a guaranteed one.
 
-var GEO_API_URL = "https://data.cityofnewyork.us/resource/jfju-ynrr.json?$limit=50000";
+var GEO_API_URL = "https://data.cityofnewyork.us/resource/3bkj-34v2.json?$limit=50000";
 var SOCRATA_APP_TOKEN = "";
 
 function normalizeFeederRecord(record) {
