@@ -1276,7 +1276,7 @@ function buildGeoLookup(records) {
 /*!************************************!*\
   !*** ./frontend/lib/schoolData.js ***!
   \************************************/
-/*! exports provided: parseSuppressible, formatSuppressible, normalizeSchool, mergeSchools */
+/*! exports provided: parseSuppressible, formatSuppressible, normalizeSchool, mergeSchools, buildHistoryByDbn */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -1285,6 +1285,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "formatSuppressible", function() { return formatSuppressible; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "normalizeSchool", function() { return normalizeSchool; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "mergeSchools", function() { return mergeSchools; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "buildHistoryByDbn", function() { return buildHistoryByDbn; });
 /* harmony import */ var _geo__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./geo */ "./frontend/lib/geo.js");
 function _slicedToArray(arr, i) { return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest(); }
 
@@ -1384,6 +1385,7 @@ function normalizeSchool(feederRecord, quality, geo) {
     name: feederRecord.feeder_school_name,
     district: district,
     borough: borough,
+    year: feederRecord.year || null,
     students8th: students8th,
     testers: testers,
     offers: offers,
@@ -1419,6 +1421,41 @@ function mergeSchools(feederData, qualityReports, geoByDbn) {
   return feederData.map(function (rec) {
     return normalizeSchool(rec, byDbn[rec.feeder_school_dbn], geoByDbn && geoByDbn[rec.feeder_school_dbn]);
   });
+} // One year's admissions row, normalized the same way as the "current"
+// snapshot (suppressed-count handling, offer rate), for a school's history.
+
+function normalizeYearlyAdmissions(record) {
+  var students8th = parseSuppressible(record.count_of_students_in_hs);
+  var testers = parseSuppressible(record.count_of_testers);
+  var offers = parseSuppressible(record.number_of_offers);
+  var offerRate = testers.value > 0 ? offers.value / testers.value * 100 : 0;
+  return {
+    year: record.year || null,
+    students8th: students8th,
+    testers: testers,
+    offers: offers,
+    offerRate: offerRate
+  };
+} // The live feeder dataset carries one row per school per year; the "current"
+// schools list only keeps the latest year (see dedupeByLatestYear in
+// root.jsx). This builds the full history per DBN, oldest year first, for
+// anything that wants to show a school's admissions over time.
+
+
+function buildHistoryByDbn(allYearsFeederData) {
+  var byDbn = {};
+  allYearsFeederData.forEach(function (record) {
+    var dbn = record.feeder_school_dbn;
+    if (!dbn) return;
+    if (!byDbn[dbn]) byDbn[dbn] = [];
+    byDbn[dbn].push(normalizeYearlyAdmissions(record));
+  });
+  Object.keys(byDbn).forEach(function (dbn) {
+    byDbn[dbn].sort(function (a, b) {
+      return (parseInt(a.year, 10) || 0) - (parseInt(b.year, 10) || 0);
+    });
+  });
+  return byDbn;
 }
 
 /***/ }),
@@ -1886,6 +1923,7 @@ var App = /*#__PURE__*/function (_React$Component) {
     _this.state = {
       schools: [],
       rawFeederData: [],
+      historyByDbn: {},
       geoByDbn: {},
       feederDataSource: null,
       compareDbns: loadSet('compareDbns'),
@@ -1907,9 +1945,10 @@ var App = /*#__PURE__*/function (_React$Component) {
     }
   }, {
     key: "setSchools",
-    value: function setSchools(feederData, feederDataSource) {
+    value: function setSchools(feederData, feederDataSource, allYearsData) {
       this.setState({
         rawFeederData: dedupeByLatestYear(feederData),
+        historyByDbn: Object(_lib_schoolData__WEBPACK_IMPORTED_MODULE_9__["buildHistoryByDbn"])(allYearsData || feederData),
         feederDataSource: feederDataSource
       }, this.remergeSchools);
     }
@@ -1974,10 +2013,15 @@ var App = /*#__PURE__*/function (_React$Component) {
         if (!response.ok) throw new Error("Feeder data request failed with status ".concat(response.status));
         return response.json();
       }).then(function (response) {
-        var feederData = dedupeByLatestYear(response.map(normalizeFeederRecord));
-        localStorage.setItem('storeData', JSON.stringify(feederData));
+        var allYearsData = response.map(normalizeFeederRecord);
+        var feederData = dedupeByLatestYear(allYearsData);
+        localStorage.setItem('storeData', JSON.stringify(feederData)); // Cached separately from storeData (which the compare-duplicate and
+        // sort/filter fixes rely on staying one-row-per-school) so a school's
+        // year-over-year history survives into the cached/fallback path too.
 
-        _this3.setSchools(feederData, 'live');
+        localStorage.setItem('storeDataHistory', JSON.stringify(allYearsData));
+
+        _this3.setSchools(feederData, 'live', allYearsData);
       })["catch"](function (error) {
         console.error('Live feeder data fetch failed, falling back to cached data', error);
 
@@ -1995,9 +2039,17 @@ var App = /*#__PURE__*/function (_React$Component) {
         cached = null;
       }
 
+      var cachedHistory = null;
+
+      try {
+        cachedHistory = JSON.parse(localStorage.getItem('storeDataHistory'));
+      } catch (error) {
+        cachedHistory = null;
+      }
+
       var feederData = Array.isArray(cached) && cached.length ? cached : feederSeed;
       localStorage.setItem('storeData', JSON.stringify(feederData));
-      this.setSchools(feederData, feederData === cached ? 'cached' : 'seed');
+      this.setSchools(feederData, feederData === cached ? 'cached' : 'seed', Array.isArray(cachedHistory) && cachedHistory.length ? cachedHistory : feederData);
     }
   }, {
     key: "toggleCompare",
@@ -2059,11 +2111,13 @@ var App = /*#__PURE__*/function (_React$Component) {
     value: function render() {
       var _this$state2 = this.state,
           schools = _this$state2.schools,
+          historyByDbn = _this$state2.historyByDbn,
           feederDataSource = _this$state2.feederDataSource,
           compareDbns = _this$state2.compareDbns,
           savedDbns = _this$state2.savedDbns;
       var shared = {
         schools: schools,
+        historyByDbn: historyByDbn,
         feederDataSource: feederDataSource,
         compareDbns: compareDbns,
         savedDbns: savedDbns,
@@ -2384,6 +2438,7 @@ var SchoolDetail = /*#__PURE__*/function (_React$Component) {
     value: function render() {
       var _this$props = this.props,
           schools = _this$props.schools,
+          historyByDbn = _this$props.historyByDbn,
           compareDbns = _this$props.compareDbns,
           savedDbns = _this$props.savedDbns,
           toggleCompare = _this$props.toggleCompare,
@@ -2392,6 +2447,7 @@ var SchoolDetail = /*#__PURE__*/function (_React$Component) {
       var school = schools.find(function (s) {
         return s.dbn === dbn;
       });
+      var history = historyByDbn && historyByDbn[dbn] || [];
       if (!schools.length) return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
         className: "detail-page detail-loading"
       }, "Loading\u2026");
@@ -2435,9 +2491,13 @@ var SchoolDetail = /*#__PURE__*/function (_React$Component) {
         className: "detail-col"
       }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
         className: "card detail-admissions"
+      }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+        className: "detail-admissions-head"
       }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", {
         className: "mono-label"
-      }, "FROM 8TH GRADE TO SPECIALIZED HIGH SCHOOL"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+      }, "FROM 8TH GRADE TO SPECIALIZED HIGH SCHOOL"), school.year && /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", {
+        className: "mono-value detail-admissions-year"
+      }, "as of ", school.year)), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
         className: "detail-stat-row"
       }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
         className: "detail-stat"
@@ -2485,7 +2545,30 @@ var SchoolDetail = /*#__PURE__*/function (_React$Component) {
         }
       }))), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", {
         className: "detail-admissions-note"
-      }, Math.round(testedShare), "% of 8th graders took the test", school.offerRate > 0 ? "; about ".concat(Math.round(school.offerRate), "% of them got an offer.") : '.'))), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+      }, Math.round(testedShare), "% of 8th graders took the test", school.offerRate > 0 ? "; about ".concat(Math.round(school.offerRate), "% of them got an offer.") : '.'))), history.length > 1 && /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+        className: "card detail-history"
+      }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", {
+        className: "mono-label"
+      }, "ADMISSIONS HISTORY"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+        className: "detail-history-table"
+      }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+        className: "detail-history-row detail-history-head"
+      }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", null, "Year"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", null, "8th graders"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", null, "Tested"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", null, "Offers"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", null, "Offer rate")), history.slice().reverse().map(function (h) {
+        return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
+          className: "detail-history-row",
+          key: h.year
+        }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", {
+          className: "mono-value"
+        }, h.year), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", {
+          className: "mono-value"
+        }, Object(_lib_schoolData__WEBPACK_IMPORTED_MODULE_2__["formatSuppressible"])(h.students8th)), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", {
+          className: "mono-value"
+        }, Object(_lib_schoolData__WEBPACK_IMPORTED_MODULE_2__["formatSuppressible"])(h.testers)), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", {
+          className: "mono-value"
+        }, Object(_lib_schoolData__WEBPACK_IMPORTED_MODULE_2__["formatSuppressible"])(h.offers)), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("span", {
+          className: "mono-value detail-history-rate"
+        }, Math.round(h.offerRate), "%"));
+      }))), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
         className: "card detail-quality"
       }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
         className: "detail-quality-head"
@@ -2958,7 +3041,7 @@ module.exports = exports;
 var ___CSS_LOADER_API_IMPORT___ = __webpack_require__(/*! ../node_modules/css-loader/dist/runtime/api.js */ "./node_modules/css-loader/dist/runtime/api.js");
 exports = ___CSS_LOADER_API_IMPORT___(false);
 // Module
-exports.push([module.i, ".detail-page {\n  padding: 36px 40px 48px;\n  display: flex;\n  flex-direction: column;\n  gap: 18px;\n}\n\n.detail-loading {\n  padding: 80px 40px;\n  text-align: center;\n  color: var(--ink-55);\n}\n\n.detail-breadcrumb {\n  font-size: 13px;\n  color: var(--ink-55);\n}\n\n.detail-heading {\n  display: flex;\n  justify-content: space-between;\n  align-items: flex-end;\n  gap: 32px;\n  flex-wrap: wrap;\n}\n\n.detail-heading h2 {\n  margin: 0 0 8px;\n  font: 400 52px / 1 var(--font-serif);\n}\n\n.detail-subline {\n  font-size: 15px;\n  color: var(--ink-60);\n}\n\n.detail-actions {\n  display: flex;\n  gap: 8px;\n  flex: 0 0 auto;\n  white-space: nowrap;\n}\n\n.detail-actions .btn-dark.is-active {\n  background: var(--ink);\n}\n\n.detail-grid {\n  display: grid;\n  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);\n  gap: 24px;\n}\n\n.detail-col {\n  display: flex;\n  flex-direction: column;\n  gap: 24px;\n}\n\n.detail-admissions { gap: 24px; }\n\n.detail-stat-row {\n  display: grid;\n  grid-template-columns: repeat(4, 1fr);\n  gap: 16px;\n}\n\n.detail-stat {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n}\n\n.detail-stat-divider {\n  padding-left: 16px;\n  border-left: 1px solid var(--ink-10);\n}\n\n.detail-stat-value {\n  font: 400 40px var(--font-serif);\n}\n\n.detail-stat-label {\n  font-size: 13px;\n  color: var(--ink-60);\n}\n\n.detail-admissions-bar {\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n}\n\n.detail-admissions-track {\n  height: 14px;\n  border-radius: 7px;\n  background: var(--ink-07);\n  position: relative;\n}\n\n.detail-admissions-tested {\n  height: 14px;\n  border-radius: 7px;\n  background: var(--blue-light);\n  position: relative;\n  overflow: hidden;\n}\n\n.detail-admissions-offers {\n  position: absolute;\n  top: 0;\n  left: 0;\n  height: 14px;\n  border-radius: 7px;\n  background: var(--accent-label);\n}\n\n.detail-admissions-note {\n  font-size: 13px;\n  color: var(--ink-60);\n}\n\n.detail-quality { gap: 18px; }\n\n.detail-quality-head {\n  display: flex;\n  justify-content: space-between;\n  align-items: baseline;\n}\n\n.detail-quality-scale {\n  font-size: 12px;\n  color: var(--ink-45);\n}\n\n.detail-quality-row {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) 160px 110px;\n  gap: 16px;\n  align-items: center;\n  padding-top: 14px;\n  border-top: 1px solid var(--ink-07);\n  font-size: 15px;\n}\n\n.detail-quality-segments {\n  display: flex;\n  gap: 4px;\n}\n\n.detail-quality-segment {\n  flex: 1;\n  height: 8px;\n  border-radius: 2px;\n  background: var(--ink-10);\n}\n\n.detail-quality-segment.is-filled {\n  background: var(--ink);\n}\n\n.detail-quality-label {\n  font-size: 14px;\n  text-align: right;\n  color: var(--ink-60);\n}\n\n.detail-proficiency { gap: 18px; }\n\n.detail-proficiency-row {\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n}\n\n.detail-proficiency-top {\n  display: flex;\n  justify-content: space-between;\n  font-size: 14px;\n}\n\n.detail-proficiency-track {\n  height: 6px;\n  border-radius: 3px;\n  background: var(--ink-07);\n}\n\n.detail-proficiency-fill {\n  height: 6px;\n  border-radius: 3px;\n  background: var(--ink);\n}\n\n.detail-demographics { gap: 18px; }\n\n.detail-demo-bar {\n  display: flex;\n  height: 22px;\n  border-radius: 6px;\n  overflow: hidden;\n  gap: 2px;\n}\n\n.detail-demo-legend {\n  display: grid;\n  grid-template-columns: 1fr 1fr;\n  gap: 8px 16px;\n}\n\n.detail-demo-legend-item {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-size: 13px;\n}\n\n.detail-demo-swatch {\n  width: 10px;\n  height: 10px;\n  border-radius: 2px;\n  display: inline-block;\n}\n\n.detail-demo-extra {\n  display: grid;\n  grid-template-columns: 1fr 1fr 1fr;\n  gap: 12px;\n  padding-top: 14px;\n  border-top: 1px solid var(--ink-07);\n}\n\n.detail-demo-extra div {\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n}\n\n.detail-demo-extra-value {\n  font: 400 24px var(--font-serif);\n}\n\n.detail-demo-extra span:last-child {\n  font-size: 12px;\n  color: var(--ink-60);\n}\n\n.detail-staff { gap: 14px; }\n\n.detail-staff-row {\n  display: flex;\n  justify-content: space-between;\n  font-size: 14px;\n}\n\n@media (max-width: 900px) {\n  .detail-page { padding: 20px 16px 60px; }\n  .detail-heading h2 { font-size: 36px; }\n  .detail-grid { grid-template-columns: 1fr; }\n  .detail-stat-row { grid-template-columns: repeat(2, 1fr); gap: 20px 16px; }\n  .detail-stat-divider { border-left: none; padding-left: 0; }\n  .detail-quality-row { grid-template-columns: minmax(0, 1fr) 90px; }\n  .detail-quality-label { display: none; }\n}\n", ""]);
+exports.push([module.i, ".detail-page {\n  padding: 36px 40px 48px;\n  display: flex;\n  flex-direction: column;\n  gap: 18px;\n}\n\n.detail-loading {\n  padding: 80px 40px;\n  text-align: center;\n  color: var(--ink-55);\n}\n\n.detail-breadcrumb {\n  font-size: 13px;\n  color: var(--ink-55);\n}\n\n.detail-heading {\n  display: flex;\n  justify-content: space-between;\n  align-items: flex-end;\n  gap: 32px;\n  flex-wrap: wrap;\n}\n\n.detail-heading h2 {\n  margin: 0 0 8px;\n  font: 400 52px / 1 var(--font-serif);\n}\n\n.detail-subline {\n  font-size: 15px;\n  color: var(--ink-60);\n}\n\n.detail-actions {\n  display: flex;\n  gap: 8px;\n  flex: 0 0 auto;\n  white-space: nowrap;\n}\n\n.detail-actions .btn-dark.is-active {\n  background: var(--ink);\n}\n\n.detail-grid {\n  display: grid;\n  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);\n  gap: 24px;\n}\n\n.detail-col {\n  display: flex;\n  flex-direction: column;\n  gap: 24px;\n}\n\n.detail-admissions { gap: 24px; }\n\n.detail-stat-row {\n  display: grid;\n  grid-template-columns: repeat(4, 1fr);\n  gap: 16px;\n}\n\n.detail-stat {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n}\n\n.detail-stat-divider {\n  padding-left: 16px;\n  border-left: 1px solid var(--ink-10);\n}\n\n.detail-stat-value {\n  font: 400 40px var(--font-serif);\n}\n\n.detail-stat-label {\n  font-size: 13px;\n  color: var(--ink-60);\n}\n\n.detail-admissions-bar {\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n}\n\n.detail-admissions-track {\n  height: 14px;\n  border-radius: 7px;\n  background: var(--ink-07);\n  position: relative;\n}\n\n.detail-admissions-tested {\n  height: 14px;\n  border-radius: 7px;\n  background: var(--blue-light);\n  position: relative;\n  overflow: hidden;\n}\n\n.detail-admissions-offers {\n  position: absolute;\n  top: 0;\n  left: 0;\n  height: 14px;\n  border-radius: 7px;\n  background: var(--accent-label);\n}\n\n.detail-admissions-note {\n  font-size: 13px;\n  color: var(--ink-60);\n}\n\n.detail-admissions-head {\n  display: flex;\n  justify-content: space-between;\n  align-items: baseline;\n}\n\n.detail-admissions-year {\n  color: var(--ink-45);\n}\n\n.detail-history { gap: 14px; }\n\n.detail-history-table {\n  display: flex;\n  flex-direction: column;\n}\n\n.detail-history-row {\n  display: grid;\n  grid-template-columns: 70px repeat(4, minmax(0, 1fr));\n  gap: 12px;\n  padding: 10px 0;\n  border-top: 1px solid var(--ink-07);\n  font-size: 14px;\n}\n\n.detail-history-row:first-child {\n  border-top: none;\n}\n\n.detail-history-head {\n  font-size: 11px;\n  font-family: var(--font-mono);\n  color: var(--ink-55);\n  padding-bottom: 8px;\n}\n\n.detail-history-rate {\n  color: var(--accent);\n  font-weight: 600;\n}\n\n.detail-quality { gap: 18px; }\n\n.detail-quality-head {\n  display: flex;\n  justify-content: space-between;\n  align-items: baseline;\n}\n\n.detail-quality-scale {\n  font-size: 12px;\n  color: var(--ink-45);\n}\n\n.detail-quality-row {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) 160px 110px;\n  gap: 16px;\n  align-items: center;\n  padding-top: 14px;\n  border-top: 1px solid var(--ink-07);\n  font-size: 15px;\n}\n\n.detail-quality-segments {\n  display: flex;\n  gap: 4px;\n}\n\n.detail-quality-segment {\n  flex: 1;\n  height: 8px;\n  border-radius: 2px;\n  background: var(--ink-10);\n}\n\n.detail-quality-segment.is-filled {\n  background: var(--ink);\n}\n\n.detail-quality-label {\n  font-size: 14px;\n  text-align: right;\n  color: var(--ink-60);\n}\n\n.detail-proficiency { gap: 18px; }\n\n.detail-proficiency-row {\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n}\n\n.detail-proficiency-top {\n  display: flex;\n  justify-content: space-between;\n  font-size: 14px;\n}\n\n.detail-proficiency-track {\n  height: 6px;\n  border-radius: 3px;\n  background: var(--ink-07);\n}\n\n.detail-proficiency-fill {\n  height: 6px;\n  border-radius: 3px;\n  background: var(--ink);\n}\n\n.detail-demographics { gap: 18px; }\n\n.detail-demo-bar {\n  display: flex;\n  height: 22px;\n  border-radius: 6px;\n  overflow: hidden;\n  gap: 2px;\n}\n\n.detail-demo-legend {\n  display: grid;\n  grid-template-columns: 1fr 1fr;\n  gap: 8px 16px;\n}\n\n.detail-demo-legend-item {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  font-size: 13px;\n}\n\n.detail-demo-swatch {\n  width: 10px;\n  height: 10px;\n  border-radius: 2px;\n  display: inline-block;\n}\n\n.detail-demo-extra {\n  display: grid;\n  grid-template-columns: 1fr 1fr 1fr;\n  gap: 12px;\n  padding-top: 14px;\n  border-top: 1px solid var(--ink-07);\n}\n\n.detail-demo-extra div {\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n}\n\n.detail-demo-extra-value {\n  font: 400 24px var(--font-serif);\n}\n\n.detail-demo-extra span:last-child {\n  font-size: 12px;\n  color: var(--ink-60);\n}\n\n.detail-staff { gap: 14px; }\n\n.detail-staff-row {\n  display: flex;\n  justify-content: space-between;\n  font-size: 14px;\n}\n\n@media (max-width: 900px) {\n  .detail-page { padding: 20px 16px 60px; }\n  .detail-heading h2 { font-size: 36px; }\n  .detail-grid { grid-template-columns: 1fr; }\n  .detail-stat-row { grid-template-columns: repeat(2, 1fr); gap: 20px 16px; }\n  .detail-stat-divider { border-left: none; padding-left: 0; }\n  .detail-quality-row { grid-template-columns: minmax(0, 1fr) 90px; }\n  .detail-quality-label { display: none; }\n}\n", ""]);
 // Exports
 module.exports = exports;
 

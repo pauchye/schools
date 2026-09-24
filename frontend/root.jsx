@@ -7,7 +7,7 @@ import SchoolDetail from './schoolDetail'
 import Compare from './compare'
 import Saved from './saved'
 import MapView from './map'
-import { mergeSchools } from './lib/schoolData'
+import { mergeSchools, buildHistoryByDbn } from './lib/schoolData'
 import { buildGeoLookup } from './lib/geocode'
 import './theme.css'
 
@@ -79,6 +79,7 @@ class App extends React.Component {
     this.state = {
       schools: [],
       rawFeederData: [],
+      historyByDbn: {},
       geoByDbn: {},
       feederDataSource: null,
       compareDbns: loadSet('compareDbns'),
@@ -96,8 +97,12 @@ class App extends React.Component {
     this.loadGeoData()
   }
 
-  setSchools(feederData, feederDataSource) {
-    this.setState({ rawFeederData: dedupeByLatestYear(feederData), feederDataSource }, this.remergeSchools)
+  setSchools(feederData, feederDataSource, allYearsData) {
+    this.setState({
+      rawFeederData: dedupeByLatestYear(feederData),
+      historyByDbn: buildHistoryByDbn(allYearsData || feederData),
+      feederDataSource,
+    }, this.remergeSchools)
   }
 
   remergeSchools() {
@@ -135,9 +140,14 @@ class App extends React.Component {
       if (!response.ok) throw new Error(`Feeder data request failed with status ${response.status}`)
       return response.json()
     }).then((response) => {
-      const feederData = dedupeByLatestYear(response.map(normalizeFeederRecord))
+      const allYearsData = response.map(normalizeFeederRecord)
+      const feederData = dedupeByLatestYear(allYearsData)
       localStorage.setItem('storeData', JSON.stringify(feederData))
-      this.setSchools(feederData, 'live')
+      // Cached separately from storeData (which the compare-duplicate and
+      // sort/filter fixes rely on staying one-row-per-school) so a school's
+      // year-over-year history survives into the cached/fallback path too.
+      localStorage.setItem('storeDataHistory', JSON.stringify(allYearsData))
+      this.setSchools(feederData, 'live', allYearsData)
     }).catch((error) => {
       console.error('Live feeder data fetch failed, falling back to cached data', error)
       this.loadFallbackFeederData()
@@ -151,9 +161,19 @@ class App extends React.Component {
     } catch (error) {
       cached = null
     }
+    let cachedHistory = null
+    try {
+      cachedHistory = JSON.parse(localStorage.getItem('storeDataHistory'))
+    } catch (error) {
+      cachedHistory = null
+    }
     const feederData = (Array.isArray(cached) && cached.length) ? cached : feederSeed
     localStorage.setItem('storeData', JSON.stringify(feederData))
-    this.setSchools(feederData, (feederData === cached) ? 'cached' : 'seed')
+    this.setSchools(
+      feederData,
+      (feederData === cached) ? 'cached' : 'seed',
+      (Array.isArray(cachedHistory) && cachedHistory.length) ? cachedHistory : feederData,
+    )
   }
 
   toggleCompare(dbn) {
@@ -192,9 +212,10 @@ class App extends React.Component {
   }
 
   render() {
-    const { schools, feederDataSource, compareDbns, savedDbns } = this.state
+    const { schools, historyByDbn, feederDataSource, compareDbns, savedDbns } = this.state
     const shared = {
       schools,
+      historyByDbn,
       feederDataSource,
       compareDbns,
       savedDbns,

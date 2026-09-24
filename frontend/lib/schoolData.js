@@ -67,6 +67,7 @@ export function normalizeSchool(feederRecord, quality, geo) {
     name: feederRecord.feeder_school_name,
     district,
     borough,
+    year: feederRecord.year || null,
     students8th,
     testers,
     offers,
@@ -93,4 +94,32 @@ export function mergeSchools(feederData, qualityReports, geoByDbn) {
   const byDbn = {}
   qualityReports.forEach((q) => { byDbn[q.DBN] = q })
   return feederData.map((rec) => normalizeSchool(rec, byDbn[rec.feeder_school_dbn], geoByDbn && geoByDbn[rec.feeder_school_dbn]))
+}
+
+// One year's admissions row, normalized the same way as the "current"
+// snapshot (suppressed-count handling, offer rate), for a school's history.
+function normalizeYearlyAdmissions(record) {
+  const students8th = parseSuppressible(record.count_of_students_in_hs)
+  const testers = parseSuppressible(record.count_of_testers)
+  const offers = parseSuppressible(record.number_of_offers)
+  const offerRate = testers.value > 0 ? (offers.value / testers.value) * 100 : 0
+  return { year: record.year || null, students8th, testers, offers, offerRate }
+}
+
+// The live feeder dataset carries one row per school per year; the "current"
+// schools list only keeps the latest year (see dedupeByLatestYear in
+// root.jsx). This builds the full history per DBN, oldest year first, for
+// anything that wants to show a school's admissions over time.
+export function buildHistoryByDbn(allYearsFeederData) {
+  const byDbn = {}
+  allYearsFeederData.forEach((record) => {
+    const dbn = record.feeder_school_dbn
+    if (!dbn) return
+    if (!byDbn[dbn]) byDbn[dbn] = []
+    byDbn[dbn].push(normalizeYearlyAdmissions(record))
+  })
+  Object.keys(byDbn).forEach((dbn) => {
+    byDbn[dbn].sort((a, b) => (parseInt(a.year, 10) || 0) - (parseInt(b.year, 10) || 0))
+  })
+  return byDbn
 }
