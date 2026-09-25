@@ -60,6 +60,7 @@ class MapView extends React.Component {
 
   componentWillUnmount() {
     if (this.leafletPoll) clearInterval(this.leafletPoll)
+    window.removeEventListener('resize', this.handleResize)
     if (this.map) {
       this.map.remove()
       this.map = null
@@ -75,6 +76,17 @@ class MapView extends React.Component {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(this.map)
     this.renderMarkers()
+
+    // Leaflet caches the container's pixel size at init and on
+    // invalidateSize() only -- if it drifts from the real on-screen size
+    // afterward (window resize, devtools opening/closing, layout settling
+    // once fonts/tiles finish loading), pan/zoom targets end up visually
+    // offset even though markers (plain DOM/SVG positioning) still look
+    // right. Re-sync on resize, and once shortly after mount to catch any
+    // late layout shift from async CSS/fonts.
+    this.handleResize = () => { if (this.map) this.map.invalidateSize() }
+    window.addEventListener('resize', this.handleResize)
+    setTimeout(this.handleResize, 300)
   }
 
   renderMarkers() {

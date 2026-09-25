@@ -13,6 +13,11 @@ import './theme.css'
 
 const allSchoolQuality = require('./reports/schoolqrep2018.json');
 const feederSeed = require('./reports/feederSeed.json')
+// DBN -> [lat, lng] for open DOE schools, compiled from NYC Public Schools /
+// NYC OpenData directory data by schools.publicworks.nyc (credited per its
+// data license) and vendored here since every live NYC Open Data school-
+// location dataset we tried fetching at runtime turned out to be 403'd.
+const schoolGeo = require('./reports/schoolGeo.json')
 
 // Socrata defaults to a 1000-row cap with an unspecified order when
 // $limit/$order aren't given. This dataset now has multiple rows per
@@ -21,14 +26,6 @@ const feederSeed = require('./reports/feederSeed.json')
 // something still gets cut off, and set $limit comfortably above the
 // full dataset's size (~700 schools x ~8 years).
 const FEEDER_API_URL = "https://data.cityofnewyork.us/resource/k8ah-28f4.json?$order=year%20DESC&$limit=50000"
-// "School Point Locations" (jfju-ynrr) turned out to be private -- same
-// 403 "must be logged in" Socrata gives for a restricted dataset, confirmed
-// via a user's network inspector. "NYC DOE Public School Location
-// Information" covers all DOE schools with DBN/lat/long and (unlike
-// jfju-ynrr) is mirrored on data.ny.gov and catalog.data.gov, a stronger
-// public/active signal -- but this sandbox can't fetch either to fully
-// confirm, so this is the best-evidence fix, not a guaranteed one.
-const GEO_API_URL = "https://data.cityofnewyork.us/resource/3bkj-34v2.json?$limit=50000"
 const SOCRATA_APP_TOKEN = ""
 
 function normalizeFeederRecord(record) {
@@ -80,7 +77,10 @@ class App extends React.Component {
       schools: [],
       rawFeederData: [],
       historyByDbn: {},
-      geoByDbn: {},
+      // Bundled at build time (see lib/geocode.js) rather than fetched --
+      // every live NYC Open Data school-location dataset we tried turned
+      // out to be 403'd, so this is baked in instead of loaded async.
+      geoByDbn: buildGeoLookup(schoolGeo),
       feederDataSource: null,
       compareDbns: loadSet('compareDbns'),
       savedDbns: loadSet('savedDbns'),
@@ -94,7 +94,6 @@ class App extends React.Component {
 
   componentDidMount() {
     this.loadFeederData()
-    this.loadGeoData()
   }
 
   setSchools(feederData, feederDataSource, allYearsData) {
@@ -110,28 +109,6 @@ class App extends React.Component {
     const schools = mergeSchools(rawFeederData, allSchoolQuality, geoByDbn)
     schools.forEach((s) => { s.isChecked = compareDbns.indexOf(s.dbn) >= 0 })
     this.setState({ schools })
-  }
-
-  loadGeoData() {
-    fetch(GEO_API_URL).then((response) => {
-      if (!response.ok) throw new Error(`Geo data request failed with status ${response.status}`)
-      return response.json()
-    }).then((response) => {
-      const geoByDbn = buildGeoLookup(response)
-      localStorage.setItem('geoData', JSON.stringify(geoByDbn))
-      this.setState({ geoByDbn }, this.remergeSchools)
-    }).catch((error) => {
-      console.error('Live geo data fetch failed, trying cached geo data', error)
-      let cached = null
-      try {
-        cached = JSON.parse(localStorage.getItem('geoData'))
-      } catch (e) {
-        cached = null
-      }
-      // No cached geo data is a soft failure: schools just keep their
-      // schematic (non-geocoded) map positions.
-      if (cached) this.setState({ geoByDbn: cached }, this.remergeSchools)
-    })
   }
 
   loadFeederData() {
