@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Route, HashRouter, Routes } from 'react-router-dom'
 import Header from './header'
 import Footer from './footer'
@@ -10,15 +10,18 @@ import MapView from './map'
 import { mergeSchools, buildHistoryByDbn } from './lib/schoolData'
 import { buildGeoLookup, SchoolGeoJson } from './lib/geocode'
 import { FeederRecord, HistoryByDbn, QualityReport, SharedProps } from './types'
-import './theme.css'
-
-const allSchoolQuality: QualityReport[] = require('./reports/schoolqrep2018.json');
-const feederSeed: FeederRecord[] = require('./reports/feederSeed.json')
+import allSchoolQualityJson from './reports/schoolqrep2018.json'
+import feederSeedJson from './reports/feederSeed.json'
 // DBN -> [lat, lng] for open DOE schools, compiled from NYC Public Schools /
 // NYC OpenData directory data by schools.publicworks.nyc (credited per its
 // data license) and vendored here since every live NYC Open Data school-
 // location dataset we tried fetching at runtime turned out to be 403'd.
-const schoolGeo: SchoolGeoJson = require('./reports/schoolGeo.json')
+import schoolGeoJson from './reports/schoolGeo.json'
+import './theme.css'
+
+const allSchoolQuality = allSchoolQualityJson as unknown as QualityReport[]
+const feederSeed = feederSeedJson as unknown as FeederRecord[]
+const schoolGeo = schoolGeoJson as unknown as SchoolGeoJson
 
 // Computed once -- the bundled lookup never changes at runtime, so there's
 // no reason for it to live in component state.

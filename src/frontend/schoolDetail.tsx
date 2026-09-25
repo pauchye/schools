@@ -1,4 +1,3 @@
-import React from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { formatSuppressible } from './lib/schoolData'
 import { SharedProps } from './types'
