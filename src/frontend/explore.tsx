@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import { ChangeEvent, useMemo, useRef, useState } from 'react'
 import SchoolRow from './schoolRow'
 import { BOROUGHS } from './lib/geo'
 import { School, SharedProps } from './types'
@@ -31,7 +31,7 @@ function Explore({ schools, feederDataSource, compareDbns, savedDbns, toggleComp
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [debouncedSetSearch] = useState(() => debounce((value: string) => setSearch(value), 250))
 
-  const handleSearchInput = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearchInput = (event: ChangeEvent<HTMLInputElement>) => {
     debouncedSetSearch(event.target.value)
   }
 

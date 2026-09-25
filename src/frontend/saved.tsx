@@ -1,4 +1,3 @@
-import React from 'react'
 import { Link } from 'react-router-dom'
 import SchoolRow from './schoolRow'
 import { formatSuppressible } from './lib/schoolData'
