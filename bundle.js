@@ -1619,6 +1619,7 @@ var MapView = /*#__PURE__*/function (_React$Component) {
     key: "componentWillUnmount",
     value: function componentWillUnmount() {
       if (this.leafletPoll) clearInterval(this.leafletPoll);
+      window.removeEventListener('resize', this.handleResize);
 
       if (this.map) {
         this.map.remove();
@@ -1628,6 +1629,8 @@ var MapView = /*#__PURE__*/function (_React$Component) {
   }, {
     key: "initMap",
     value: function initMap() {
+      var _this3 = this;
+
       if (!this.mapNode || this.map) return;
       var L = window.L;
       this.map = L.map(this.mapNode, {
@@ -1637,17 +1640,30 @@ var MapView = /*#__PURE__*/function (_React$Component) {
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(this.map);
-      this.renderMarkers();
+      this.renderMarkers(); // Leaflet caches the container's pixel size at init and on
+      // invalidateSize() only -- if it drifts from the real on-screen size
+      // afterward (window resize, devtools opening/closing, layout settling
+      // once fonts/tiles finish loading), pan/zoom targets end up visually
+      // offset even though markers (plain DOM/SVG positioning) still look
+      // right. Re-sync on resize, and once shortly after mount to catch any
+      // late layout shift from async CSS/fonts.
+
+      this.handleResize = function () {
+        if (_this3.map) _this3.map.invalidateSize();
+      };
+
+      window.addEventListener('resize', this.handleResize);
+      setTimeout(this.handleResize, 300);
     }
   }, {
     key: "renderMarkers",
     value: function renderMarkers() {
-      var _this3 = this;
+      var _this4 = this;
 
       var L = window.L;
       if (!L || !this.map) return;
       Object.values(this.markersByDbn).forEach(function (m) {
-        return _this3.map.removeLayer(m);
+        return _this4.map.removeLayer(m);
       });
       this.markersByDbn = {};
       var geocoded = this.props.schools.filter(function (s) {
@@ -1663,9 +1679,9 @@ var MapView = /*#__PURE__*/function (_React$Component) {
           weight: 2,
           fillColor: '#c2410c',
           fillOpacity: 0.85
-        }).addTo(_this3.map);
+        }).addTo(_this4.map);
         marker.bindPopup(popupHtml(school));
-        _this3.markersByDbn[school.dbn] = marker;
+        _this4.markersByDbn[school.dbn] = marker;
       });
     }
   }, {
@@ -1679,7 +1695,7 @@ var MapView = /*#__PURE__*/function (_React$Component) {
   }, {
     key: "render",
     value: function render() {
-      var _this4 = this;
+      var _this5 = this;
 
       var schools = this.props.schools;
       var search = this.state.search;
@@ -1712,7 +1728,7 @@ var MapView = /*#__PURE__*/function (_React$Component) {
         placeholder: "Search this list\u2026",
         value: search,
         onChange: function onChange(e) {
-          return _this4.setState({
+          return _this5.setState({
             search: e.target.value
           });
         }
@@ -1725,7 +1741,7 @@ var MapView = /*#__PURE__*/function (_React$Component) {
           key: s.dbn,
           className: "map-list-item",
           onClick: function onClick() {
-            return _this4.focusSchool(s);
+            return _this5.focusSchool(s);
           }
         }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
           className: "map-list-item-meta"
@@ -1743,7 +1759,7 @@ var MapView = /*#__PURE__*/function (_React$Component) {
       }, "Loading map\u2026"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", {
         className: "map-leaflet-root",
         ref: function ref(el) {
-          _this4.mapNode = el;
+          _this5.mapNode = el;
         }
       })));
     }
