@@ -1,7 +1,9 @@
+import { MapPosition } from '../types'
+
 // NYC's 32 community school districts (plus the citywide 75/79/84 program
 // codes) have fixed, well-known borough assignments -- this needs no
 // external geodata.
-const DISTRICT_BOROUGH = {
+const DISTRICT_BOROUGH: Record<number, string> = {
   1: 'Manhattan', 2: 'Manhattan', 3: 'Manhattan', 4: 'Manhattan', 5: 'Manhattan', 6: 'Manhattan',
   7: 'Bronx', 8: 'Bronx', 9: 'Bronx', 10: 'Bronx', 11: 'Bronx', 12: 'Bronx',
   13: 'Brooklyn', 14: 'Brooklyn', 15: 'Brooklyn', 16: 'Brooklyn', 17: 'Brooklyn', 18: 'Brooklyn',
@@ -10,11 +12,11 @@ const DISTRICT_BOROUGH = {
   31: 'Staten Island',
 }
 
-export function districtOf(dbn) {
+export function districtOf(dbn: string): number {
   return parseInt(dbn.slice(0, 2), 10)
 }
 
-export function boroughOf(district) {
+export function boroughOf(district: number): string {
   return DISTRICT_BOROUGH[district] || 'Citywide'
 }
 
@@ -25,7 +27,7 @@ export const BOROUGHS = ['Brooklyn', 'Queens', 'Manhattan', 'Bronx', 'Staten Isl
 // each district a fixed anchor within that region, and each school a small
 // deterministic offset from its district anchor so points spread out
 // without claiming to be real geocoding.
-const BOROUGH_ANCHOR = {
+const BOROUGH_ANCHOR: Record<string, MapPosition> = {
   Manhattan: { x: 0.46, y: 0.42 },
   Bronx: { x: 0.52, y: 0.14 },
   Brooklyn: { x: 0.5, y: 0.68 },
@@ -34,7 +36,7 @@ const BOROUGH_ANCHOR = {
   Citywide: { x: 0.46, y: 0.42 },
 }
 
-function hashString(str) {
+function hashString(str: string): number {
   let h = 0
   for (let i = 0; i < str.length; i++) {
     h = (h * 31 + str.charCodeAt(i)) >>> 0
@@ -42,7 +44,7 @@ function hashString(str) {
   return h
 }
 
-export function approxMapPosition(dbn) {
+export function approxMapPosition(dbn: string): MapPosition {
   const district = districtOf(dbn)
   const borough = boroughOf(district)
   const anchor = BOROUGH_ANCHOR[borough]

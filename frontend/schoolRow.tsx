@@ -1,9 +1,18 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { formatSuppressible } from './lib/schoolData'
+import { School } from './types'
 import './schoolRow.css'
 
-function SchoolRow({ school, maxTesters, isSaved, onToggleCompare, onToggleSaved }) {
+interface SchoolRowProps {
+  school: School
+  maxTesters: number
+  isSaved: boolean
+  onToggleCompare: (dbn: string) => void
+  onToggleSaved: (dbn: string) => void
+}
+
+function SchoolRow({ school, maxTesters, isSaved, onToggleCompare, onToggleSaved }: SchoolRowProps) {
   const testedWidth = maxTesters > 0 ? (school.testers.value / maxTesters) * 100 : 0
   const offerRateLabel = `${Math.round(school.offerRate)}%`
   const ela = typeof school.ela === 'number' ? school.ela.toFixed(1) : '—'
