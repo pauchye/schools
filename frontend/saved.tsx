@@ -2,14 +2,15 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import SchoolRow from './schoolRow'
 import { formatSuppressible } from './lib/schoolData'
+import { School, SharedProps } from './types'
 import './saved.css'
 
-function exportCsv(schools) {
+function exportCsv(schools: School[]) {
   const header = ['Name', 'DBN', 'District', 'Borough', '8th graders', 'Tested', 'Offers', 'Offer rate', 'ELA', 'Math']
   const rows = schools.map((s) => [
-    s.name, s.dbn, s.district, s.borough,
+    s.name, s.dbn, String(s.district), s.borough,
     formatSuppressible(s.students8th), formatSuppressible(s.testers), formatSuppressible(s.offers),
-    `${Math.round(s.offerRate)}%`, s.ela || '', s.math || '',
+    `${Math.round(s.offerRate)}%`, String(s.ela || ''), String(s.math || ''),
   ])
   const csv = [header].concat(rows).map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
   const blob = new Blob([csv], { type: 'text/csv' })
@@ -21,10 +22,10 @@ function exportCsv(schools) {
   URL.revokeObjectURL(url)
 }
 
-function Saved({ schools, feederDataSource, savedDbns, compareDbns, toggleCompare, toggleSaved, removeFromCompare }) {
-  const saved = savedDbns.map((dbn) => schools.find((s) => s.dbn === dbn)).filter(Boolean)
+function Saved({ schools, feederDataSource, savedDbns, compareDbns, toggleCompare, toggleSaved, removeFromCompare }: SharedProps) {
+  const saved = savedDbns.map((dbn) => schools.find((s) => s.dbn === dbn)).filter((s): s is School => Boolean(s))
   const maxTesters = Math.max(1, ...saved.map((s) => s.testers.value))
-  const compareSchools = compareDbns.map((dbn) => schools.find((s) => s.dbn === dbn)).filter(Boolean)
+  const compareSchools = compareDbns.map((dbn) => schools.find((s) => s.dbn === dbn)).filter((s): s is School => Boolean(s))
 
   return (
     <div className="saved-page">

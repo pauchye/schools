@@ -1,10 +1,9 @@
 import React from 'react'
-import ReactDOM from 'react-dom'
+import { createRoot } from 'react-dom/client'
 
 import Root from './frontend/root'
 
 document.addEventListener('DOMContentLoaded', () => {
     const root = document.getElementById('root')
-    ReactDOM.render(<Root/>, root)
+    if (root) createRoot(root).render(<Root/>)
 })
-

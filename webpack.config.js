@@ -2,7 +2,7 @@ const path = require('path');
 
 module.exports = {
   context: __dirname,
-  entry: "./app.jsx",
+  entry: "./app.tsx",
   output: {
     path: path.resolve(__dirname),
     filename: "bundle.js"
@@ -14,12 +14,12 @@ module.exports = {
         use: ['style-loader', 'css-loader'],
       },
       {
-        test: /\.jsx?$/,
+        test: /\.(jsx?|tsx?)$/,
         exclude: /(node_modules)/,
         use: {
           loader: 'babel-loader',
           query: {
-            presets: ['@babel/env', '@babel/react']
+            presets: ['@babel/env', '@babel/react', '@babel/preset-typescript']
           }
         },
       }
@@ -27,6 +27,6 @@ module.exports = {
   },
   devtool: 'source-map',
   resolve: {
-    extensions: [".js", ".jsx", "*"]
+    extensions: [".ts", ".tsx", ".js", ".jsx", "*"]
   }
 };
